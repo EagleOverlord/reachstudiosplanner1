@@ -19,8 +19,8 @@
                         Dashboard
                     </flux:navlist.item>
 
-                    <!-- Create Schedule without Icon -->
-                    <flux:navlist.item :href="route('schedule.create')" :current="request()->routeIs('schedule.create')" wire:navigate>
+                    <!-- Create Schedule with Icon -->
+                    <flux:navlist.item icon="calendar" :href="route('schedule.create')" :current="request()->routeIs('schedule.create', 'schedule.edit')" wire:navigate>
                         Create Schedule
                     </flux:navlist.item>
                 </flux:navlist.group>

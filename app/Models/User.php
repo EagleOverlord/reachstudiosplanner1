@@ -21,6 +21,7 @@ class User extends Authenticatable
         'password',
         'admin_status',
         'keys_status',
+        'team',
     ];
 
     /**
@@ -44,4 +45,28 @@ class User extends Authenticatable
         'admin_status' => 'string',
         'keys_status' => 'string',
     ];
+
+    /**
+     * Check if user has office keys
+     */
+    public function hasKeys(): bool
+    {
+        return $this->keys_status === 'yes';
+    }
+    
+    /**
+     * Check if user is an admin
+     */
+    public function isAdmin(): bool
+    {
+        return $this->admin_status === 'yes';
+    }
+    
+    /**
+     * Get user's shifts
+     */
+    public function shifts()
+    {
+        return $this->hasMany(Shift::class);
+    }
 }

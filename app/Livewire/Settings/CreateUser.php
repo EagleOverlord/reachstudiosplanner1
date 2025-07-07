@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Livewire\Component;
+use Illuminate\Support\Facades\Auth;
 
 class CreateUser extends Component
 {
@@ -25,6 +26,11 @@ class CreateUser extends Component
     public string $password = '';
 
     /**
+     * The user's team.
+     */
+    public string $team = '';
+
+    /**
      * The user's admin status.
      * Default to 'no' to ensure a value is set.
      */
@@ -37,6 +43,17 @@ class CreateUser extends Component
     public string $keys_status = 'no';
 
     /**
+     * Mount the component and check admin permissions.
+     */
+    public function mount()
+    {
+        // Check if the current user is an admin
+        if (Auth::user()->admin_status !== 'yes') {
+            abort(403, 'Access denied. Admin privileges required.');
+        }
+    }
+
+    /**
      * The validation rules.
      */
     protected function rules(): array
@@ -45,8 +62,7 @@ class CreateUser extends Component
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'string', Password::defaults()],
-            // MODIFICATION: Added validation rules for admin_status and keys_status
-            'team' => ['required', 'string', 'in:yes,no'],
+            'team' => ['required', 'string', 'in:mobile,front_end,back_end,design,slt,e_commerce,bdm'],
             'admin_status' => ['required', 'string', 'in:yes,no'],
             'keys_status' => ['required', 'string', 'in:yes,no'],
         ];
@@ -57,6 +73,11 @@ class CreateUser extends Component
      */
     public function createUser(): void
     {
+        // Double-check admin privileges before creating user
+        if (Auth::user()->admin_status !== 'yes') {
+            abort(403, 'Access denied. Admin privileges required.');
+        }
+
         // Validate the form input data
         $validated = $this->validate();
 
@@ -65,8 +86,7 @@ class CreateUser extends Component
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-            // MODIFICATION: Added admin_status and keys_status to the create method
-            // This assumes your User model has these fields in its $fillable array.
+            'team' => $validated['team'],
             'admin_status' => $validated['admin_status'],
             'keys_status' => $validated['keys_status'],
         ]);
@@ -74,7 +94,7 @@ class CreateUser extends Component
         // Dispatch the success event to the front-end
         $this->dispatch('user-created');
 
-        // MODIFICATION: Reset all form fields after successful creation
+        // Reset all form fields after successful creation
         $this->reset();
     }
 

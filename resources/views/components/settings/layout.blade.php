@@ -4,8 +4,10 @@
             <flux:navlist.item :href="route('settings.profile')" wire:navigate>{{ __('Profile') }}</flux:navlist.item>
             <flux:navlist.item :href="route('settings.password')" wire:navigate>{{ __('Password') }}</flux:navlist.item>
             <flux:navlist.item :href="route('settings.appearance')" wire:navigate>{{ __('Appearance') }}</flux:navlist.item>
-            <flux:navlist.item :href="route('settings.create_user')" wire:navigate>{{ __('Create new user') }}</flux:navlist.item>
-            <flux:navlist.item :href="route('settings.users')" wire:navigate>{{ __('Teams') }}</flux:navlist.item>
+            @if(auth()->user()->admin_status === 'yes')
+                <flux:navlist.item :href="route('settings.users')" wire:navigate>{{ __('Users') }}</flux:navlist.item>
+                <flux:navlist.item :href="route('settings.create_user')" wire:navigate>{{ __('Create new user') }}</flux:navlist.item>
+            @endif
         </flux:navlist>
     </div>
 
@@ -15,7 +17,7 @@
         <flux:heading>{{ $heading ?? '' }}</flux:heading>
         <flux:subheading>{{ $subheading ?? '' }}</flux:subheading>
 
-        <div class="mt-5 w-full max-w-lg">
+        <div class="mt-5 w-full max-w-7xl">
             {{ $slot }}
         </div>
     </div>

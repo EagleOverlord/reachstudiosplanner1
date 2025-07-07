@@ -35,7 +35,7 @@ class ShiftSeeder extends Seeder
                 'start_time' => $startTime,
                 'end_time' => $endTime,
                 'location' => collect(['office', 'home', 'holiday'])->random(),
-            ]);¡
+            ]);
         }
 
         // Optionally: add a few random shifts throughout the rest of the week
