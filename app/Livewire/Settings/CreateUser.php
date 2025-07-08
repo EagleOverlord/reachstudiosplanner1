@@ -3,6 +3,7 @@
 namespace App\Livewire\Settings;
 
 use App\Models\User;
+use App\Models\Notification;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Livewire\Component;
@@ -82,7 +83,7 @@ class CreateUser extends Component
         $validated = $this->validate();
 
         // Create the user in the database
-        User::create([
+        $newUser = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
@@ -90,6 +91,21 @@ class CreateUser extends Component
             'admin_status' => $validated['admin_status'],
             'keys_status' => $validated['keys_status'],
         ]);
+
+        // Create a notification for the new user creation
+        Notification::createUserNotification(
+            'user_created',
+            'New User Created',
+            "A new user '{$newUser->name}' has been created by " . Auth::user()->name . ".",
+            [
+                'user_id' => $newUser->id,
+                'created_by' => Auth::user()->id,
+                'user_email' => $newUser->email,
+                'user_team' => $newUser->team,
+                'admin_status' => $newUser->admin_status,
+                'keys_status' => $newUser->keys_status,
+            ]
+        );
 
         // Dispatch the success event to the front-end
         $this->dispatch('user-created');

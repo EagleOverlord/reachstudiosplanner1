@@ -5,6 +5,7 @@
             <flux:navlist.item :href="route('settings.password')" wire:navigate>{{ __('Password') }}</flux:navlist.item>
             <flux:navlist.item :href="route('settings.appearance')" wire:navigate>{{ __('Appearance') }}</flux:navlist.item>
             @if(auth()->user()->admin_status === 'yes')
+                <flux:navlist.item :href="route('settings.notifications')" wire:navigate>{{ __('Notifications') }}</flux:navlist.item>
                 <flux:navlist.item :href="route('settings.users')" wire:navigate>{{ __('Users') }}</flux:navlist.item>
                 <flux:navlist.item :href="route('settings.create_user')" wire:navigate>{{ __('Create new user') }}</flux:navlist.item>
             @endif

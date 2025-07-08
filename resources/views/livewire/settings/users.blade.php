@@ -1,4 +1,6 @@
-<div>
+<section class="w-full">
+    @include('partials.settings-heading')
+
     <x-settings.layout :heading="__('Users Management')" :subheading="__('View all users and their team assignments')">
         <div class="space-y-6 max-w-none w-full">
             <!-- Success Message -->
@@ -229,4 +231,4 @@
             </div>
         </div>
     </x-settings.layout>
-</div>
+</section>

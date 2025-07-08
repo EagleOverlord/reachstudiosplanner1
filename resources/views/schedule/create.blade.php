@@ -11,16 +11,54 @@
             @endif
             <div class="flex space-x-4">
                 <div class="w-1/2">
-                    <label for="start" class="block text-sm font-medium text-gray-300">Start Date & Time</label>
-                    <input type="datetime-local" name="start" id="start" required 
-                           value="{{ isset($shift) ? $shift->start_time->format('Y-m-d\TH:i') : old('start') }}"
-                           class="mt-1 block w-full border-gray-700 bg-gray-800 text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Start Date & Time</label>
+                    <div class="flex space-x-2">
+                        <input type="date" name="start_date" id="start_date" required 
+                               value="{{ isset($shift) ? $shift->start_time->format('Y-m-d') : old('start_date', \Carbon\Carbon::tomorrow()->format('Y-m-d')) }}"
+                               class="flex-1 border-gray-700 bg-gray-800 text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <select name="start_time" id="start_time" required 
+                                class="flex-1 border-gray-700 bg-gray-800 text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                            @php
+                                $currentStartTime = isset($shift) ? $shift->start_time->format('H:i') : old('start_time', '09:00');
+                            @endphp
+                            @for($hour = 6; $hour <= 23; $hour++)
+                                @for($minute = 0; $minute < 60; $minute += 15)
+                                    @php
+                                        $timeValue = sprintf('%02d:%02d', $hour, $minute);
+                                        $timeDisplay = date('g:i A', strtotime($timeValue));
+                                    @endphp
+                                    <option value="{{ $timeValue }}" {{ $currentStartTime == $timeValue ? 'selected' : '' }}>
+                                        {{ $timeDisplay }}
+                                    </option>
+                                @endfor
+                            @endfor
+                        </select>
+                    </div>
                 </div>
                 <div class="w-1/2">
-                    <label for="end" class="block text-sm font-medium text-gray-300">End Date & Time</label>
-                    <input type="datetime-local" name="end" id="end" required 
-                           value="{{ isset($shift) ? $shift->end_time->format('Y-m-d\TH:i') : old('end') }}"
-                           class="mt-1 block w-full border-gray-700 bg-gray-800 text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <label class="block text-sm font-medium text-gray-300 mb-2">End Date & Time</label>
+                    <div class="flex space-x-2">
+                        <input type="date" name="end_date" id="end_date" required 
+                               value="{{ isset($shift) ? $shift->end_time->format('Y-m-d') : old('end_date', \Carbon\Carbon::tomorrow()->format('Y-m-d')) }}"
+                               class="flex-1 border-gray-700 bg-gray-800 text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <select name="end_time" id="end_time" required 
+                                class="flex-1 border-gray-700 bg-gray-800 text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                            @php
+                                $currentEndTime = isset($shift) ? $shift->end_time->format('H:i') : old('end_time', '17:00');
+                            @endphp
+                            @for($hour = 6; $hour <= 23; $hour++)
+                                @for($minute = 0; $minute < 60; $minute += 15)
+                                    @php
+                                        $timeValue = sprintf('%02d:%02d', $hour, $minute);
+                                        $timeDisplay = date('g:i A', strtotime($timeValue));
+                                    @endphp
+                                    <option value="{{ $timeValue }}" {{ $currentEndTime == $timeValue ? 'selected' : '' }}>
+                                        {{ $timeDisplay }}
+                                    </option>
+                                @endfor
+                            @endfor
+                        </select>
+                    </div>
                 </div>
             </div>
             <div>

@@ -56,15 +56,25 @@ class ScheduleController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'start' => 'required|date',
-            'end' => 'required|date|after:start',
+            'start_date' => 'required|date',
+            'start_time' => 'required|date_format:H:i',
+            'end_date' => 'required|date',
+            'end_time' => 'required|date_format:H:i',
             'location' => 'required|in:home,office',
         ]);
 
         $user = Auth::user();
-        $startTime = \Carbon\Carbon::parse($validated['start']);
-        $endTime = \Carbon\Carbon::parse($validated['end']);
-        $durationHours = $endTime->diffInHours($startTime, true);
+        
+        // Combine date and time for start and end
+        $startDateTime = Carbon::parse($validated['start_date'] . ' ' . $validated['start_time']);
+        $endDateTime = Carbon::parse($validated['end_date'] . ' ' . $validated['end_time']);
+        
+        // Validate that end is after start
+        if ($endDateTime <= $startDateTime) {
+            return back()->withErrors(['end_time' => 'End time must be after start time.'])->withInput();
+        }
+
+        $durationHours = $endDateTime->diffInHours($startDateTime, true);
 
         // Check for warnings
         $warnings = [];
@@ -76,7 +86,7 @@ class ScheduleController extends Controller
 
         // Check for office access if location is office
         if ($validated['location'] === 'office' && !$user->hasKeys()) {
-            $date = $startTime->toDateString();
+            $date = $startDateTime->toDateString();
             $usersWithKeysInOffice = Shift::whereDate('start_time', $date)
                 ->where('location', 'office')
                 ->whereHas('user', function($query) {
@@ -92,8 +102,8 @@ class ScheduleController extends Controller
 
         Shift::create([
             'user_id' => Auth::id(),
-            'start_time' => str_replace('T', ' ', $validated['start']),
-            'end_time' => str_replace('T', ' ', $validated['end']),
+            'start_time' => $startDateTime,
+            'end_time' => $endDateTime,
             'location' => $validated['location'],
         ]);
 

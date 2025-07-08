@@ -40,6 +40,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/settings/profile', Profile::class)->name('settings.profile');
     Route::get('/settings/password', \App\Livewire\Settings\Password::class)->name('settings.password');
     Route::get('/settings/appearance', Appearance::class)->name('settings.appearance');
+    
+    // Admin-only routes
+    Route::get('/settings/notifications', \App\Livewire\Settings\Notifications::class)->name('settings.notifications')->middleware('admin');
 
     // Admin-only routes
     Route::get('/settings/create-user', \App\Livewire\Settings\CreateUser::class)->name('settings.create_user')->middleware('admin');
