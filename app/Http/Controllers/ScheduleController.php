@@ -32,6 +32,7 @@ class ScheduleController extends Controller
         // Check if someone with keys is already scheduled for office work on this date
         $usersWithKeysInOffice = Shift::whereDate('start_time', $date)
             ->where('location', 'office')
+            ->where('type', 'work')
             ->whereHas('user', function($query) {
                 $query->where('keys_status', 'yes');
             })
@@ -60,7 +61,8 @@ class ScheduleController extends Controller
             'start_time' => 'required|date_format:H:i',
             'end_date' => 'required|date',
             'end_time' => 'required|date_format:H:i',
-            'location' => 'required|in:home,office',
+            'location' => 'required|in:home,office,meeting',
+            'type' => 'required|in:work,holiday,meeting',
         ]);
 
         $user = Auth::user();
@@ -79,16 +81,17 @@ class ScheduleController extends Controller
         // Check for warnings
         $warnings = [];
         
-        // Check if duration is less than 8 hours
-        if ($durationHours < 8) {
+        // Only check duration for work shifts
+        if ($validated['type'] === 'work' && $durationHours < 8) {
             $warnings[] = "Warning: Your scheduled shift is only {$durationHours} hours, which is less than the standard 8-hour workday.";
         }
 
-        // Check for office access if location is office
-        if ($validated['location'] === 'office' && !$user->hasKeys()) {
+        // Check for office access if location is office and type is work
+        if ($validated['location'] === 'office' && $validated['type'] === 'work' && !$user->hasKeys()) {
             $date = $startDateTime->toDateString();
             $usersWithKeysInOffice = Shift::whereDate('start_time', $date)
                 ->where('location', 'office')
+                ->where('type', 'work')
                 ->whereHas('user', function($query) {
                     $query->where('keys_status', 'yes');
                 })
@@ -105,6 +108,7 @@ class ScheduleController extends Controller
             'start_time' => $startDateTime,
             'end_time' => $endDateTime,
             'location' => $validated['location'],
+            'type' => $validated['type'],
         ]);
 
         $message = 'Schedule created successfully!';
@@ -149,7 +153,8 @@ class ScheduleController extends Controller
         $validated = $request->validate([
             'start' => 'required|date',
             'end' => 'required|date|after:start',
-            'location' => 'required|in:home,office',
+            'location' => 'required|in:home,office,meeting',
+            'type' => 'required|in:work,holiday,meeting',
         ]);
 
         $startTime = \Carbon\Carbon::parse($validated['start']);
@@ -159,16 +164,17 @@ class ScheduleController extends Controller
         // Check for warnings
         $warnings = [];
         
-        // Check if duration is less than 8 hours
-        if ($durationHours < 8) {
+        // Only check duration for work shifts
+        if ($validated['type'] === 'work' && $durationHours < 8) {
             $warnings[] = "Warning: Your scheduled shift is only {$durationHours} hours, which is less than the standard 8-hour workday.";
         }
 
-        // Check for office access if location is office
-        if ($validated['location'] === 'office' && !$user->hasKeys()) {
+        // Check for office access if location is office and type is work
+        if ($validated['location'] === 'office' && $validated['type'] === 'work' && !$user->hasKeys()) {
             $date = $startTime->toDateString();
             $usersWithKeysInOffice = Shift::whereDate('start_time', $date)
                 ->where('location', 'office')
+                ->where('type', 'work')
                 ->where('id', '!=', $shift->id) // Exclude current shift
                 ->whereHas('user', function($query) {
                     $query->where('keys_status', 'yes');
@@ -185,6 +191,7 @@ class ScheduleController extends Controller
             'start_time' => str_replace('T', ' ', $validated['start']),
             'end_time' => str_replace('T', ' ', $validated['end']),
             'location' => $validated['location'],
+            'type' => $validated['type'],
         ]);
 
         $message = 'Schedule updated successfully!';

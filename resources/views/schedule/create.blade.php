@@ -62,6 +62,29 @@
                 </div>
             </div>
             <div>
+                <span class="block text-sm font-medium text-gray-300 mb-2">Schedule Type</span>
+                <div class="flex items-center space-x-4"> 
+                    <label class="inline-flex items-center">
+                        <input type="radio" name="type" value="work" 
+                               class="form-radio text-indigo-400 bg-gray-800 border-gray-700" id="work-type"
+                               {{ (isset($shift) && ($shift->type === 'work' || !isset($shift->type))) || (!isset($shift) && old('type', 'work') === 'work') ? 'checked' : '' }}>
+                        <span class="ml-2 text-gray-200">Work</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="radio" name="type" value="holiday" 
+                               class="form-radio text-indigo-400 bg-gray-800 border-gray-700" id="holiday-type"
+                               {{ (isset($shift) && $shift->type === 'holiday') || (!isset($shift) && old('type') === 'holiday') ? 'checked' : '' }}>
+                        <span class="ml-2 text-gray-200">Holiday</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="radio" name="type" value="meeting" 
+                               class="form-radio text-indigo-400 bg-gray-800 border-gray-700" id="meeting-type"
+                               {{ (isset($shift) && $shift->type === 'meeting') || (!isset($shift) && old('type') === 'meeting') ? 'checked' : '' }}>
+                        <span class="ml-2 text-gray-200">Meeting</span>
+                    </label>
+                </div>
+            </div>
+            <div id="location-section">
                 <span class="block text-sm font-medium text-gray-300 mb-2">Work Location</span>
                 <div class="flex items-center space-x-4"> 
                     <label class="inline-flex items-center">
@@ -75,6 +98,12 @@
                                class="form-radio text-indigo-400 bg-gray-800 border-gray-700" id="office-option"
                                {{ (isset($shift) && $shift->location === 'office') || (!isset($shift) && old('location') === 'office') ? 'checked' : '' }}>
                         <span class="ml-2 text-gray-200">Office</span>
+                    </label>
+                    <label class="inline-flex items-center" id="meeting-location-option" style="display: none;">
+                        <input type="radio" name="location" value="meeting" 
+                               class="form-radio text-indigo-400 bg-gray-800 border-gray-700"
+                               {{ (isset($shift) && $shift->location === 'meeting') || (!isset($shift) && old('location') === 'meeting') ? 'checked' : '' }}>
+                        <span class="ml-2 text-gray-200">Meeting Location</span>
                     </label>
                 </div>
                 <div id="office-access-info" class="mt-2 text-sm hidden">
@@ -135,8 +164,10 @@
         }
         
         document.addEventListener('DOMContentLoaded', function() {
-            const startInput = document.getElementById('start');
-            const endInput = document.getElementById('end');
+            const startDateInput = document.getElementById('start_date');
+            const startTimeInput = document.getElementById('start_time');
+            const endDateInput = document.getElementById('end_date');
+            const endTimeInput = document.getElementById('end_time');
             const warningDiv = document.getElementById('duration-warning');
             const warningMessage = document.getElementById('duration-message');
             const officeOption = document.getElementById('office-option');
@@ -144,24 +175,55 @@
             const keyWarningMessage = document.getElementById('key-warning-message');
             const officeAccessInfo = document.getElementById('office-access-info');
             const userHasKeys = {{ $user->hasKeys() ? 'true' : 'false' }};
+            
+            // Type and location elements
+            const workType = document.getElementById('work-type');
+            const holidayType = document.getElementById('holiday-type');
+            const meetingType = document.getElementById('meeting-type');
+            const locationSection = document.getElementById('location-section');
+            const meetingLocationOption = document.getElementById('meeting-location-option');
 
             let currentOfficeAccess = userHasKeys;
 
+            function updateLocationOptions() {
+                if (holidayType.checked) {
+                    // Hide location section for holidays
+                    locationSection.style.display = 'none';
+                    meetingLocationOption.style.display = 'none';
+                } else if (meetingType.checked) {
+                    // Show location section and meeting location for meetings
+                    locationSection.style.display = 'block';
+                    meetingLocationOption.style.display = 'block';
+                    // Auto-select meeting location for meetings
+                    document.querySelector('input[name="location"][value="meeting"]').checked = true;
+                } else {
+                    // Show location section without meeting location for work
+                    locationSection.style.display = 'block';
+                    meetingLocationOption.style.display = 'none';
+                    // Auto-select home if meeting was selected
+                    if (document.querySelector('input[name="location"][value="meeting"]').checked) {
+                        document.querySelector('input[name="location"][value="home"]').checked = true;
+                    }
+                }
+                validateKeys();
+            }
+
             function validateDuration() {
-                if (startInput.value && endInput.value) {
-                    const startTime = new Date(startInput.value);
-                    const endTime = new Date(endInput.value);
+                if (startDateInput.value && startTimeInput.value && endDateInput.value && endTimeInput.value) {
+                    const startDateTime = new Date(startDateInput.value + 'T' + startTimeInput.value);
+                    const endDateTime = new Date(endDateInput.value + 'T' + endTimeInput.value);
                     
-                    if (endTime <= startTime) {
+                    if (endDateTime <= startDateTime) {
                         warningDiv.classList.remove('hidden');
                         warningMessage.textContent = 'End time must be after start time.';
                         return;
                     }
                     
-                    const diffMs = endTime - startTime;
+                    const diffMs = endDateTime - startDateTime;
                     const diffHours = diffMs / (1000 * 60 * 60);
                     
-                    if (diffHours < 8) {
+                    // Only show duration warning for work shifts
+                    if (workType.checked && diffHours < 8) {
                         warningDiv.classList.remove('hidden');
                         const actualHours = Math.round(diffHours * 10) / 10;
                         warningMessage.textContent = `The selected duration is ${actualHours} hours, which is less than the standard 8-hour workday.`;
@@ -174,11 +236,11 @@
             }
 
             function checkOfficeAccess() {
-                if (!startInput.value) {
+                if (!startDateInput.value || !workType.checked) {
                     return;
                 }
 
-                const selectedDate = new Date(startInput.value).toISOString().split('T')[0];
+                const selectedDate = startDateInput.value;
                 
                 fetch('{{ route("schedule.check-office-access") }}', {
                     method: 'POST',
@@ -237,7 +299,7 @@
             }
 
             function validateKeys() {
-                if (!currentOfficeAccess && officeOption && officeOption.checked) {
+                if (!currentOfficeAccess && officeOption && officeOption.checked && workType.checked) {
                     keyWarning.classList.remove('hidden');
                     keyWarningMessage.textContent = 'Warning: You cannot work in the office on this date - no one with keys will be there to let you in.';
                     return true; // Allow submission but show warning
@@ -247,16 +309,27 @@
                 }
             }
 
-            startInput.addEventListener('change', function() {
+            // Event listeners
+            startDateInput.addEventListener('change', function() {
                 validateDuration();
                 checkOfficeAccess();
             });
             
-            endInput.addEventListener('change', validateDuration);
+            startTimeInput.addEventListener('change', validateDuration);
+            endDateInput.addEventListener('change', validateDuration);
+            endTimeInput.addEventListener('change', validateDuration);
             
             if (officeOption) {
                 officeOption.addEventListener('change', validateKeys);
             }
+            
+            // Type change listeners
+            workType.addEventListener('change', updateLocationOptions);
+            holidayType.addEventListener('change', updateLocationOptions);
+            meetingType.addEventListener('change', updateLocationOptions);
+            
+            // Initialize location options based on current type
+            updateLocationOptions();
 
             // Validate on form submission but allow submission with warnings
             document.querySelector('form').addEventListener('submit', function(e) {

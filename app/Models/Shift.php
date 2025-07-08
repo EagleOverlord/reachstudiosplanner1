@@ -11,6 +11,7 @@ class Shift extends Model
         'start_time',
         'end_time',
         'location',
+        'type',
     ];
 
     protected $casts = [

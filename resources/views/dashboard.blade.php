@@ -164,8 +164,18 @@
                                             {{ \Carbon\Carbon::parse($shift['start'])->format('g:i A') }} - 
                                             {{ \Carbon\Carbon::parse($shift['end'])->format('g:i A') }}
                                         </span>
+                                        @php
+                                            $type = $shift['extendedProps']['type'] ?? 'work';
+                                            $location = $shift['extendedProps']['location'];
+                                        @endphp
                                         <span class="text-gray-400 text-sm ml-2">
-                                            ({{ ucfirst($shift['extendedProps']['location']) }})
+                                            @if($type === 'holiday')
+                                                (Holiday)
+                                            @elseif($type === 'meeting')
+                                                (Meeting{{ $location === 'meeting' ? '' : ' - ' . ucfirst($location) }})
+                                            @else
+                                                ({{ ucfirst($location) }})
+                                            @endif
                                         </span>
                                     </div>
                                 </div>
