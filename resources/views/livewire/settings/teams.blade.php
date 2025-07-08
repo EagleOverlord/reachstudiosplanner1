@@ -11,9 +11,9 @@
              @user-moved.window="show = true; message = $event.detail.message; type = $event.detail.message.includes('not valid') ? 'error' : 'success'; setTimeout(() => show = false, 5000)">
             <div x-show="show" x-transition 
                  :class="{
-                     'bg-green-100 border-green-400 text-green-700': type === 'success',
-                     'bg-red-100 border-red-400 text-red-700': type === 'error',
-                     'bg-blue-100 border-blue-400 text-blue-700': type === 'info'
+                     'bg-green-100 border-green-400 text-green-700 dark:bg-green-900 dark:border-green-600 dark:text-green-200': type === 'success',
+                     'bg-red-100 border-red-400 text-red-700 dark:bg-red-900 dark:border-red-600 dark:text-red-200': type === 'error',
+                     'bg-blue-100 border-blue-400 text-blue-700 dark:bg-blue-900 dark:border-blue-600 dark:text-blue-200': type === 'info'
                  }"
                  class="mb-4 p-4 border rounded">
                 <p x-text="message"></p>
@@ -23,7 +23,7 @@
         <!-- Teams Overview -->
         <div class="mb-8">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold">Teams Overview</h3>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Teams Overview</h3>
                 <flux:button wire:click="showCreateModal" variant="primary" size="sm" class="inline-flex items-center gap-2">
                     <span class="text-lg font-bold leading-none">+</span>
                     <span>Create New Team</span>
@@ -32,20 +32,20 @@
             
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
                 @foreach($teamStats as $teamKey => $stats)
-                    <div class="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer {{ $selectedTeam === $teamKey ? 'ring-2 ring-blue-500' : '' }}" 
+                    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer {{ $selectedTeam === $teamKey ? 'ring-2 ring-blue-500 dark:ring-blue-400' : '' }}" 
                          wire:click="selectTeam('{{ $teamKey }}')">
                         <div class="flex justify-between items-start mb-2">
-                            <h4 class="font-medium text-gray-900">{{ $stats['name'] }}</h4>
+                            <h4 class="font-medium text-gray-900 dark:text-white">{{ $stats['name'] }}</h4>
                             <div class="flex space-x-1">
                                 <flux:button wire:click.stop="showEditModal('{{ $teamKey }}')" size="xs" variant="ghost" class="flex items-center">
                                     <flux:icon.pencil class="size-3" />
                                 </flux:button>
-                                <flux:button wire:click.stop="showDeleteModal('{{ $teamKey }}')" size="xs" variant="ghost" class="text-red-600 flex items-center">
+                                <flux:button wire:click.stop="showDeleteModal('{{ $teamKey }}')" size="xs" variant="ghost" class="text-red-600 dark:text-red-400 flex items-center">
                                     <flux:icon.trash class="size-3" />
                                 </flux:button>
                             </div>
                         </div>
-                        <div class="text-sm text-gray-600">
+                        <div class="text-sm text-gray-600 dark:text-gray-400">
                             <p>{{ $stats['count'] }} member{{ $stats['count'] !== 1 ? 's' : '' }}</p>
                             <p>{{ $stats['admin_count'] }} admin{{ $stats['admin_count'] !== 1 ? 's' : '' }}</p>
                         </div>
@@ -57,54 +57,54 @@
         <!-- Team Members Section -->
         @if($selectedTeam)
             <div>
-                <h3 class="text-lg font-semibold mb-4">
+                <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
                     {{ \App\Models\Team::getTeamName($selectedTeam) }} Team Members
                 </h3>
                 
                 @if(count($teamMembers) > 0)
-                    <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                         <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
+                            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                <thead class="bg-gray-50 dark:bg-gray-900">
                                     <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Keys</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Role</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Keys</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">
+                                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                     @foreach($teamMembers as $member)
-                                        <tr class="hover:bg-gray-50">
+                                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 <div class="flex items-center">
                                                     <div class="flex-shrink-0 h-8 w-8">
-                                                        <div class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
+                                                        <div class="h-8 w-8 rounded-full bg-blue-500 dark:bg-blue-600 flex items-center justify-center">
                                                             <span class="text-sm font-medium text-white">
                                                                 {{ strtoupper(substr($member['name'], 0, 1)) }}
                                                             </span>
                                                         </div>
                                                     </div>
                                                     <div class="ml-3">
-                                                        <div class="text-sm font-medium text-gray-900">{{ $member['name'] }}</div>
+                                                        <div class="text-sm font-medium text-gray-900 dark:text-white">{{ $member['name'] }}</div>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                                 {{ $member['email'] }}
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
-                                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {{ $member['admin_status'] === 'yes' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800' }}">
+                                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {{ $member['admin_status'] === 'yes' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200' }}">
                                                     {{ $member['admin_status'] === 'yes' ? 'Admin' : 'User' }}
                                                 </span>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
-                                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {{ $member['keys_status'] === 'yes' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {{ $member['keys_status'] === 'yes' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' }}">
                                                     {{ $member['keys_status'] === 'yes' ? 'Has Keys' : 'No Keys' }}
                                                 </span>
                                             </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                                 <flux:button wire:click="showMoveModal({{ $member['id'] }})" size="sm" variant="outline">
                                                     Move to Team
                                                 </flux:button>
@@ -116,8 +116,8 @@
                         </div>
                     </div>
                 @else
-                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
-                        <div class="text-gray-500">
+                    <div class="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-8 text-center">
+                        <div class="text-gray-500 dark:text-gray-400">
                             <flux:icon.users class="mx-auto h-12 w-12 mb-4" />
                             <h3 class="text-lg font-medium mb-2">No team members</h3>
                             <p>This team doesn't have any members yet.</p>
