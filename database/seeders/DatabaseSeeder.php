@@ -13,9 +13,11 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Call the DebugUserSeeder and ShiftSeeder
+        if (app()->environment('local')) {
+            $this->call(DebugUserSeeder::class);
+        }
+
         $this->call([
-            DebugUserSeeder::class,
             ShiftSeeder::class, // Add the ShiftSeeder here
         ]);
     }

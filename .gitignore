@@ -21,3 +21,9 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# macOS system files
+.DS_Store
+
+# Local debug data
+dev_testing_usernames.txt
