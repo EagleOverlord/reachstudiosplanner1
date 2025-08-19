@@ -73,6 +73,14 @@ class Notifications extends Component
         Notification::findOrFail($notificationId)->delete();
     }
 
+    /**
+     * Get the count of unread notifications.
+     */
+    public function getUnreadCountProperty(): int
+    {
+        return Notification::where('is_read', false)->count();
+    }
+
     public function render()
     {
         $notifications = Notification::orderBy('created_at', 'desc')->paginate(10);

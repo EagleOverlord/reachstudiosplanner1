@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\Notification;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +21,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Share unread notification count with settings layout
+        View::composer('components.settings.layout', function ($view) {
+            $unreadNotificationCount = Notification::where('is_read', false)->count();
+            $view->with('unreadNotificationCount', $unreadNotificationCount);
+        });
     }
 }
