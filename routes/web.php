@@ -8,6 +8,7 @@ use App\Livewire\Settings\Password;
 use App\Livewire\Settings\Profile;
 use App\Livewire\Settings\CreateUser;
 use App\Livewire\Settings\Users;
+use App\Livewire\Settings\Teams;
 
 /*
 |--------------------------------------------------------------------------
@@ -47,6 +48,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Admin-only routes
     Route::get('/settings/create-user', \App\Livewire\Settings\CreateUser::class)->name('settings.create_user')->middleware('admin');
     Route::get('/settings/users', \App\Livewire\Settings\Users::class)->name('settings.users')->middleware('admin');
+    Route::get('/settings/teams', Teams::class)->name('settings.teams')->middleware('admin');
 
     // You can add more authenticated routes here later
 });

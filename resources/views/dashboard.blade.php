@@ -1,144 +1,140 @@
 <x-layouts.app :title="__('Dashboard')">
-    <head>
-        <meta charset='utf-8' />
+    @push('styles')
         <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.min.css" rel="stylesheet">
-        <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js"></script>
-
         <style>
-            body {
-                @apply bg-white dark:bg-gray-900 text-gray-900 dark:text-white;
-            }
-
-            #calendar {
-                max-width: 1500px;
-                margin: 40px auto;
-                background-color: white;
-                padding: 0;
-                border-radius: 6px;
-                overflow: hidden;
-                box-shadow: 0 0 10px rgba(0,0,0,0.05);
-            }
-
-            /* Ensure scroll grid and time labels are visible */
-            .fc-col-header, .fc-timegrid-axis, .fc-timegrid-slot-label {
-                color: inherit;
-                font-weight: 500;
-                font-size: 0.85rem;
-            }
-
-            /* Dark mode overrides */
-            .dark #calendar {
-                background-color: #1f2937; /* gray-800 */
-                color: white;
-            }
-
-            .dark .fc {
-                background-color: #1f2937;
-            }
-
-            .dark .fc-timegrid-slot-label,
-            .dark .fc-col-header-cell-cushion,
-            .dark .fc-scrollgrid-sync-inner {
-                color: #e5e7eb; /* gray-200 */
-            }
-
-            .dark .fc-timegrid-slot {
-                border-color: #374151;
-            }
-
-            .dark .fc-scrollgrid {
-                border-color: #25282c;
-            }
+            #calendar { max-width: 1500px; margin: 40px auto; background-color: white; padding: 0; border-radius: 6px; overflow: hidden; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
+            .fc-col-header, .fc-timegrid-axis, .fc-timegrid-slot-label { color: inherit; font-weight: 500; font-size: 0.85rem; }
+            .dark #calendar, .dark .fc { background-color: #1f2937; color: white; }
+            .dark .fc-timegrid-slot-label, .dark .fc-col-header-cell-cushion, .dark .fc-scrollgrid-sync-inner { color: #e5e7eb; }
+            .dark .fc-timegrid-slot { border-color: #374151; }
+            .dark .fc-scrollgrid { border-color: #25282c; }
         </style>
+    @endpush
 
+    @push('scripts')
+        <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js"></script>
         <script>
-            function initializeCalendar() {
-                var calendarEl = document.getElementById('calendar');
-                
-                // Check if calendar already exists and destroy it
-                if (window.dashboardCalendar) {
-                    window.dashboardCalendar.destroy();
+            (function(){
+                const MAX_ATTEMPTS = 20; // ~2s with 100ms interval
+                let attempts = 0;
+
+                const buildCalendar = () => {
+                    const calendarEl = document.getElementById('calendar');
+                    if (!calendarEl || !window.FullCalendar) return false;
+                    if (window.dashboardCalendar) {
+                        try { window.dashboardCalendar.destroy(); } catch(e) {}
+                    }
+                    const today = new Date().toISOString().slice(0,10);
+                    try {
+                        window.dashboardCalendar = new FullCalendar.Calendar(calendarEl, {
+                            initialView: 'timeGridDay',
+                            initialDate: today,
+                            slotMinTime: '07:30:00',
+                            slotMaxTime: '19:00:00',
+                            allDaySlot: false,
+                            slotDuration: '00:30:00',
+                            slotLabelFormat: { hour: '2-digit', minute: '2-digit', meridiem: false, hour12: false },
+                            headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
+                            events: @json($shifts),
+                            eventDidMount: info => {
+                                if (info.event.extendedProps.location === 'home') { info.el.style.backgroundColor = '#2563eb'; info.el.style.borderColor = '#2563eb'; }
+                                else if (info.event.extendedProps.location === 'office') { info.el.style.backgroundColor = '#22c55e'; info.el.style.borderColor = '#22c55e'; }
+                                if (info.event.extendedProps.is_editable) { info.el.style.cursor = 'pointer'; info.el.title = 'Click to edit your shift'; }
+                            },
+                            eventClick: info => { if (info.event.extendedProps.is_editable) { window.location.href = `/schedule/${info.event.id}/edit`; } },
+                            eventContent: arg => {
+                                const title = arg.event.title || '';
+                                const hasKey = arg.event.extendedProps.has_key;
+                                const keyIcon = hasKey ? ' <span title="Holds key">🔑</span>' : '';
+                                const isEditable = arg.event.extendedProps.is_editable;
+                                const editIcon = isEditable ? ' <span title="Click to edit" style="color: #fbbf24;">✏️</span>' : '';
+                                const name = title.split(' - ')[0];
+                                const rest = title.substring(name.length);
+                                return { html: `<b>${name}${keyIcon}${editIcon}${rest}</b>` };
+                            },
+                            eventOverlap: true,
+                            eventMaxStack: 20,
+                            dayMaxEvents: false,
+                            dayMaxEventRows: false,
+                        });
+                        window.dashboardCalendar.render();
+                        return true;
+                    } catch (e) {
+                        console.error('Calendar init error:', e);
+                        return false;
+                    }
+                };
+
+                const attemptInit = () => {
+                    if (buildCalendar()) return;
+                    attempts++;
+                    if (attempts < MAX_ATTEMPTS) setTimeout(attemptInit, 100);
+                };
+
+                // Immediate attempt (script placed after DOM for this view)
+                if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                    attemptInit();
+                } else {
+                    document.addEventListener('DOMContentLoaded', attemptInit, { once: true });
                 }
 
-                if (calendarEl) {
-                    window.dashboardCalendar = new FullCalendar.Calendar(calendarEl, {
-                        initialView: 'timeGridDay',
-                        initialDate: '2025-07-07', // Set to today's date
-                        slotMinTime: '07:30:00',
-                        slotMaxTime: '19:00:00',
-                        allDaySlot: false,
-                        slotDuration: '00:30:00',
+                // Re-init after Livewire navigation
+                document.addEventListener('livewire:navigated', () => setTimeout(attemptInit, 0));
 
-                        slotLabelFormat: {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            meridiem: false,
-                            hour12: false
-                        },
-
-                        headerToolbar: {
-                            left: 'prev,next today',
-                            center: 'title',
-                            right: 'dayGridMonth,timeGridWeek,timeGridDay'
-                        },
-
-                        events: @json($shifts),
-
-                        eventDidMount: function(info) {
-                            if (info.event.extendedProps.location === 'home') {
-                                info.el.style.backgroundColor = '#2563eb'; // blue-600
-                                info.el.style.borderColor = '#2563eb';
-                            } else if (info.event.extendedProps.location === 'office') {
-                                info.el.style.backgroundColor = '#22c55e'; // green-500
-                                info.el.style.borderColor = '#22c55e';
-                            }
-                            
-                            // Add hover effect for editable shifts
-                            if (info.event.extendedProps.is_editable) {
-                                info.el.style.cursor = 'pointer';
-                                info.el.title = 'Click to edit your shift';
-                            }
-                        },
-                        
-                        eventClick: function(info) {
-                            // Allow editing only for user's own upcoming shifts
-                            if (info.event.extendedProps.is_editable) {
-                                window.location.href = `/schedule/${info.event.id}/edit`;
-                            }
-                        },
-
-                        eventContent: function(arg) {
-                            let title = arg.event.title || '';
-                            let hasKey = arg.event.extendedProps.has_key;
-                            let keyIcon = hasKey ? ' <span title="Holds key">🔑</span>' : '';
-                            let isEditable = arg.event.extendedProps.is_editable;
-                            let editIcon = isEditable ? ' <span title="Click to edit" style="color: #fbbf24;">✏️</span>' : '';
-                            let name = title.split(' - ')[0];
-                            let rest = title.substring(name.length);
-                            return { html: `<b>${name}${keyIcon}${editIcon}${rest}</b>` };
-                        },
-
-                        eventOverlap: true,
-                        eventMaxStack: 20, // allow up to 20 stacked events
-                        dayMaxEvents: false, // do not limit number of events per day
-                        dayMaxEventRows: false, // do not limit number of event rows
-                    });
-
-                    window.dashboardCalendar.render();
-                }
-            }
-
-            // Initialize on DOM ready
-            document.addEventListener('DOMContentLoaded', initializeCalendar);
-            
-            // Initialize on Livewire navigation
-            document.addEventListener('livewire:navigated', initializeCalendar);
+                // Optional: expose manual refresh
+                window.refreshDashboardCalendar = attemptInit;
+            })();
         </script>
-    </head>
+    @endpush
 
-    <body class="dark:bg-gray-900">
-        <div class="container mx-auto px-4">
-            <div id='calendar'></div>
+    <div class="container mx-auto px-4">
+        <div id='calendar'></div>
+        <!-- Calendar Legend / Key -->
+        <div class="mt-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-4 text-sm">
+            <h3 class="font-semibold mb-3 text-gray-700 dark:text-gray-200">Key</h3>
+            
+            <!-- Location Legend -->
+            <div class="mb-4">
+                <h4 class="font-medium mb-2 text-gray-600 dark:text-gray-300">Shift Locations</h4>
+                <ul class="flex flex-wrap gap-x-8 gap-y-3">
+                    <li class="flex items-center space-x-2">
+                        <span class="w-3 h-3 rounded-full" style="background-color:#2563eb"></span>
+                        <span class="text-gray-600 dark:text-gray-300">Home shift</span>
+                    </li>
+                    <li class="flex items-center space-x-2">
+                        <span class="w-3 h-3 rounded-full" style="background-color:#22c55e"></span>
+                        <span class="text-gray-600 dark:text-gray-300">Office shift</span>
+                    </li>
+                    <li class="flex items-center space-x-2">
+                        <span class="w-3 h-3 rounded-full" style="background-color:#FF9800"></span>
+                        <span class="text-gray-600 dark:text-gray-300">Holiday</span>
+                    </li>
+                    <li class="flex items-center space-x-2">
+                        <span>🔑</span>
+                        <span class="text-gray-600 dark:text-gray-300">Key holder</span>
+                    </li>
+                    <li class="flex items-center space-x-2">
+                        <span class="text-yellow-500">✏️</span>
+                        <span class="text-gray-600 dark:text-gray-300">Editable (your shifts)</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Teams Legend -->
+            @if(count($teams) > 0)
+            <div>
+                <h4 class="font-medium mb-2 text-gray-600 dark:text-gray-300">Teams</h4>
+                <ul class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-2">
+                    @foreach($teams as $teamKey => $teamName)
+                        <li class="flex items-center space-x-2">
+                            <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+                            <span class="text-gray-600 dark:text-gray-300 text-xs">{{ $teamName }}</span>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+            @endif
+        </div>
             
             <!-- User's Upcoming Shifts Section -->
             <div class="mt-6 bg-gray-900 p-4 rounded-lg border border-gray-700">
@@ -167,6 +163,14 @@
                                         <span class="text-gray-400 text-sm ml-2">
                                             ({{ ucfirst($shift['extendedProps']['location']) }})
                                         </span>
+                                        @if($shift['extendedProps']['team_name'] !== 'No Team')
+                                            <span class="text-indigo-400 text-sm ml-2">
+                                                [{{ $shift['extendedProps']['team_name'] }}]
+                                            </span>
+                                        @endif
+                                        @if($shift['extendedProps']['has_key'])
+                                            <span class="ml-2" title="Key holder">🔑</span>
+                                        @endif
                                     </div>
                                 </div>
                                 <div class="flex space-x-2">
@@ -192,6 +196,5 @@
                     <p class="text-gray-400">You have no upcoming shifts scheduled.</p>
                 @endif
             </div>
-        </div>
-    </body>
+    </div>
 </x-layouts.app>

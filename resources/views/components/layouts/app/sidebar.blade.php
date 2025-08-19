@@ -124,5 +124,6 @@
         @endisset
 
         @fluxScripts
+    @stack('scripts')
     </body>
 </html>
