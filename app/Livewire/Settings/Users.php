@@ -6,6 +6,7 @@ use Livewire\Component;
 use App\Models\User;
 use Livewire\WithPagination;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Auth;
 
 class Users extends Component
 {
@@ -23,6 +24,14 @@ class Users extends Component
     public $editTeam = '';
     public $editAdminStatus = '';
     public $editKeysStatus = '';
+
+    public function mount()
+    {
+        // Check if the current user is an admin
+        if (Auth::user()->admin_status !== 'yes') {
+            abort(403, 'Unauthorized access to user management.');
+        }
+    }
 
     public function updatingSearch()
     {
@@ -96,8 +105,10 @@ class Users extends Component
     public function render()
     {
         $users = User::when($this->search, function ($query) {
-            $query->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhere('email', 'like', '%' . $this->search . '%');
+            $query->where(function ($subQuery) {
+                $subQuery->where('name', 'like', '%' . $this->search . '%')
+                         ->orWhere('email', 'like', '%' . $this->search . '%');
+            });
         })
         ->when($this->teamFilter, function ($query) {
             $query->where('team', $this->teamFilter);

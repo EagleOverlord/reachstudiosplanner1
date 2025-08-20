@@ -14,7 +14,7 @@
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Start Date & Time</label>
                     <div class="flex space-x-2">
                         <input type="date" name="start_date" id="start_date" required 
-                               value="{{ isset($shift) ? $shift->start_time->format('Y-m-d') : old('start_date', \Carbon\Carbon::tomorrow()->format('Y-m-d')) }}"
+                               value="{{ isset($shift) ? $shift->start_time->format('Y-m-d') : old('start_date', $defaultDate ?? \Carbon\Carbon::tomorrow()->format('Y-m-d')) }}"
                                class="flex-1 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
                         <select name="start_time" id="start_time" required 
                                 class="flex-1 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
@@ -39,7 +39,7 @@
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">End Date & Time</label>
                     <div class="flex space-x-2">
                         <input type="date" name="end_date" id="end_date" required 
-                               value="{{ isset($shift) ? $shift->end_time->format('Y-m-d') : old('end_date', \Carbon\Carbon::tomorrow()->format('Y-m-d')) }}"
+                               value="{{ isset($shift) ? $shift->end_time->format('Y-m-d') : old('end_date', $defaultDate ?? \Carbon\Carbon::tomorrow()->format('Y-m-d')) }}"
                                class="flex-1 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
                         <select name="end_time" id="end_time" required 
                                 class="flex-1 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
@@ -61,6 +61,30 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Multi-day booking section -->
+            @if(!isset($shift))
+            <div id="multi-day-section" style="display: none;">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Number of Consecutive Days</label>
+                <select name="consecutive_days" id="consecutive_days" 
+                        class="w-full border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="1" selected>1 Day (Default)</option>
+                    <option value="2">2 Days</option>
+                    <option value="3">3 Days</option>
+                    <option value="4">4 Days</option>
+                    <option value="5">5 Days</option>
+                    <option value="6">6 Days</option>
+                    <option value="7">7 Days</option>
+                    <option value="8">8 Days</option>
+                    <option value="9">9 Days</option>
+                    <option value="10">10 Days</option>
+                </select>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Will create shifts for consecutive weekdays starting from the selected start date. Weekends will be automatically skipped.
+                </p>
+            </div>
+            @endif
+            
             <div>
                 <span class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Schedule Type</span>
                 <div class="flex items-center space-x-4"> 
@@ -84,6 +108,7 @@
                     </label>
                 </div>
             </div>
+            
             <div id="location-section">
                 <span class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Work Location</span>
                 <div class="flex items-center space-x-4"> 
@@ -182,6 +207,8 @@
             const meetingType = document.getElementById('meeting-type');
             const locationSection = document.getElementById('location-section');
             const meetingLocationOption = document.getElementById('meeting-location-option');
+            const multiDaySection = document.getElementById('multi-day-section');
+            const consecutiveDaysSelect = document.getElementById('consecutive_days');
 
             let currentOfficeAccess = userHasKeys;
 
@@ -190,16 +217,27 @@
                     // Hide location section for holidays
                     locationSection.style.display = 'none';
                     meetingLocationOption.style.display = 'none';
+                    // Auto-select home for holidays (default holiday location)
+                    document.querySelector('input[name="location"][value="home"]').checked = true;
+                    // Show multi-day section for holidays (if it exists)
+                    if (multiDaySection) multiDaySection.style.display = 'block';
                 } else if (meetingType.checked) {
                     // Show location section and meeting location for meetings
                     locationSection.style.display = 'block';
                     meetingLocationOption.style.display = 'block';
+                    // Hide multi-day section for meetings (single meetings only)
+                    if (multiDaySection) {
+                        multiDaySection.style.display = 'none';
+                        consecutiveDaysSelect.value = '1';
+                    }
                     // Auto-select meeting location for meetings
                     document.querySelector('input[name="location"][value="meeting"]').checked = true;
                 } else {
                     // Show location section without meeting location for work
                     locationSection.style.display = 'block';
                     meetingLocationOption.style.display = 'none';
+                    // Show multi-day section for work (if it exists)
+                    if (multiDaySection) multiDaySection.style.display = 'block';
                     // Auto-select home if meeting was selected
                     if (document.querySelector('input[name="location"][value="meeting"]').checked) {
                         document.querySelector('input[name="location"][value="home"]').checked = true;
@@ -327,6 +365,20 @@
             workType.addEventListener('change', updateLocationOptions);
             holidayType.addEventListener('change', updateLocationOptions);
             meetingType.addEventListener('change', updateLocationOptions);
+            
+            // Handle consecutive days selection
+            if (consecutiveDaysSelect) {
+                consecutiveDaysSelect.addEventListener('change', function() {
+                    if (parseInt(this.value) > 1) {
+                        endDateInput.disabled = true;
+                        endDateInput.value = startDateInput.value; // Set same as start date for now
+                        endDateInput.style.opacity = '0.5';
+                    } else {
+                        endDateInput.disabled = false;
+                        endDateInput.style.opacity = '1';
+                    }
+                });
+            }
             
             // Initialize location options based on current type
             updateLocationOptions();

@@ -1,6 +1,7 @@
 <x-layouts.app :title="__('Dashboard')">
     @push('styles')
-        <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.min.css" rel="stylesheet">
+        <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.min.css" rel="stylesheet" 
+              crossorigin="anonymous">
         <style>
             #calendar { max-width: 1500px; margin: 40px auto; background-color: white; padding: 0; border-radius: 6px; overflow: hidden; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
             .fc-col-header, .fc-timegrid-axis, .fc-timegrid-slot-label { color: inherit; font-weight: 500; font-size: 0.85rem; }
@@ -12,7 +13,8 @@
     @endpush
 
     @push('scripts')
-        <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js" 
+                crossorigin="anonymous"></script>
         <script>
             (function(){
                 const MAX_ATTEMPTS = 20; // ~2s with 100ms interval
@@ -27,7 +29,7 @@
                     const today = new Date().toISOString().slice(0,10);
                     try {
                         window.dashboardCalendar = new FullCalendar.Calendar(calendarEl, {
-                            initialView: 'timeGridDay',
+                            initialView: 'timeGridWeek',
                             initialDate: today,
                             slotMinTime: '07:30:00',
                             slotMaxTime: '19:00:00',
@@ -37,9 +39,30 @@
                             headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
                             events: @json($shifts),
                             eventDidMount: info => {
-                                if (info.event.extendedProps.location === 'home') { info.el.style.backgroundColor = '#2563eb'; info.el.style.borderColor = '#2563eb'; }
-                                else if (info.event.extendedProps.location === 'office') { info.el.style.backgroundColor = '#22c55e'; info.el.style.borderColor = '#22c55e'; }
-                                if (info.event.extendedProps.is_editable) { info.el.style.cursor = 'pointer'; info.el.title = 'Click to edit your shift'; }
+                                const type = info.event.extendedProps.type || 'work';
+                                const location = info.event.extendedProps.location;
+                                
+                                // Color coding based on type first, then location for work shifts
+                                if (type === 'holiday') {
+                                    info.el.style.backgroundColor = '#FF9800';
+                                    info.el.style.borderColor = '#FF9800';
+                                } else if (type === 'meeting') {
+                                    info.el.style.backgroundColor = '#9C27B0';
+                                    info.el.style.borderColor = '#9C27B0';
+                                } else if (type === 'work') {
+                                    if (location === 'home') {
+                                        info.el.style.backgroundColor = '#2563eb';
+                                        info.el.style.borderColor = '#2563eb';
+                                    } else if (location === 'office') {
+                                        info.el.style.backgroundColor = '#22c55e';
+                                        info.el.style.borderColor = '#22c55e';
+                                    }
+                                }
+                                
+                                if (info.event.extendedProps.is_editable) {
+                                    info.el.style.cursor = 'pointer';
+                                    info.el.title = 'Click to edit your shift';
+                                }
                             },
                             eventClick: info => { if (info.event.extendedProps.is_editable) { window.location.href = `/schedule/${info.event.id}/edit`; } },
                             eventContent: arg => {
@@ -110,6 +133,9 @@
                         <span class="text-gray-600 dark:text-gray-300">Holiday</span>
                     </li>
                     <li class="flex items-center space-x-2">
+                        <span class="w-3 h-3 rounded-full" style="background-color:#9C27B0"></span>
+                        <span class="text-gray-600 dark:text-gray-300">Meeting</span>
+                    </li>
                         <span>🔑</span>
                         <span class="text-gray-600 dark:text-gray-300">Key holder</span>
                     </li>

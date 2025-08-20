@@ -21,3 +21,8 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Prevent committing test credentials
+dev_testing_usernames.txt
+*test_credentials*
+*testing_usernames*

@@ -24,6 +24,7 @@ class DashboardController extends Controller
                 'end' => $shift->end_time->format('Y-m-d\TH:i:s'),
                 'extendedProps' => [
                     'location' => $shift->location,
+                    'type' => $shift->type ?? 'work', // Add the missing type field
                     'has_key' => $shift->user->keys_status === 'yes',
                     'user_id' => $shift->user_id,
                     'user_team' => $userTeam,
@@ -32,10 +33,15 @@ class DashboardController extends Controller
                     'is_upcoming' => $shift->isUpcoming(),
                     'is_editable' => $shift->user_id === $user->id && $shift->isUpcoming(),
                 ],
-                'backgroundColor' => match ($shift->location) {
-                    'office' => '#4CAF50',
-                    'home' => '#2196F3',
+                'backgroundColor' => match ($shift->type ?? 'work') {
                     'holiday' => '#FF9800',
+                    'meeting' => '#9C27B0',
+                    'work' => match ($shift->location) {
+                        'office' => '#4CAF50',
+                        'home' => '#2196F3',
+                        'meeting' => '#9C27B0',
+                        default => '#9E9E9E',
+                    },
                     default => '#9E9E9E',
                 },
             ];

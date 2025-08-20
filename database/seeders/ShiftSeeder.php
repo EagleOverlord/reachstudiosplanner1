@@ -30,25 +30,44 @@ class ShiftSeeder extends Seeder
             $startTime = $day->copy()->addHours($startHour)->addMinutes([0, 15, 30, 45][rand(0, 3)]);
             $endTime = $startTime->copy()->addHours(rand(1, 3));
 
+            // Randomly choose type and appropriate location
+            $type = collect(['work', 'holiday', 'meeting'])->random();
+            $location = match($type) {
+                'holiday' => 'home', // Holidays default to home
+                'meeting' => collect(['office', 'meeting'])->random(), // Meetings can be in office or meeting room
+                'work' => collect(['office', 'home'])->random(), // Work can be office or home
+            };
+
             Shift::create([
                 'user_id' => $users->random()->id,
                 'start_time' => $startTime,
                 'end_time' => $endTime,
-                'location' => collect(['office', 'home', 'holiday'])->random(),
+                'location' => $location,
+                'type' => $type,
             ]);
         }
 
         // Optionally: add a few random shifts throughout the rest of the week
         foreach (range(1, 5) as $i) {
+            $startTime = Carbon::now()
+                ->addDays(rand(2, 7))
+                ->setTime(rand(7, 16), 0);
+            $endTime = $startTime->copy()->addHours(rand(1, 5));
+            
+            // Randomly choose type and appropriate location
+            $type = collect(['work', 'holiday', 'meeting'])->random();
+            $location = match($type) {
+                'holiday' => 'home', // Holidays default to home
+                'meeting' => collect(['office', 'meeting'])->random(), // Meetings can be in office or meeting room
+                'work' => collect(['office', 'home'])->random(), // Work can be office or home
+            };
+            
             Shift::create([
                 'user_id' => $users->random()->id,
-                'start_time' => Carbon::now()
-                    ->addDays(rand(2, 7))
-                    ->setTime(rand(7, 16), 0),
-                'end_time' => Carbon::now()
-                    ->addDays(rand(2, 7))
-                    ->setTime(rand(17, 22), 0),
-                'location' => collect(['office', 'home'])->random(),
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+                'location' => $location,
+                'type' => $type,
             ]);
         }
     }

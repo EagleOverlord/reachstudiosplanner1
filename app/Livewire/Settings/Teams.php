@@ -6,6 +6,7 @@ use Livewire\Component;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Auth;
 
 class Teams extends Component
 {
@@ -35,19 +36,13 @@ class Teams extends Component
     public $movingUserId = null;
     public $moveToTeam = '';
 
-    protected function rules()
-    {
-        return [
-            'newTeamKey' => ['required', 'string', 'max:50', 'regex:/^[a-z0-9_]+$/', Rule::unique('teams', 'key')],
-            'newTeamName' => 'required|string|max:100',
-            'newTeamDescription' => 'nullable|string|max:500',
-            'editingTeamName' => 'required|string|max:100',
-            'editingTeamDescription' => 'nullable|string|max:500',
-        ];
-    }
-
     public function mount()
     {
+        // Check if the current user is an admin
+        if (Auth::user()->admin_status !== 'yes') {
+            abort(403, 'Unauthorized access to teams management.');
+        }
+        
         $this->loadData();
     }
 
