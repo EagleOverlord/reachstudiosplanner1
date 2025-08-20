@@ -136,6 +136,7 @@
                         <span class="w-3 h-3 rounded-full" style="background-color:#9C27B0"></span>
                         <span class="text-gray-600 dark:text-gray-300">Meeting</span>
                     </li>
+                    <li class="flex items-center space-x-2">
                         <span>🔑</span>
                         <span class="text-gray-600 dark:text-gray-300">Key holder</span>
                     </li>
@@ -163,8 +164,8 @@
         </div>
             
             <!-- User's Upcoming Shifts Section -->
-            <div class="mt-6 bg-gray-900 p-4 rounded-lg border border-gray-700">
-                <h2 class="text-xl font-bold text-gray-100 mb-4">My Upcoming Shifts</h2>
+            <div class="mt-6 bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-300 dark:border-gray-700">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">My Upcoming Shifts</h2>
                 @php
                     $userShifts = collect($shifts)->where('extendedProps.is_own_shift', true)
                                                  ->where('extendedProps.is_upcoming', true)
@@ -175,14 +176,14 @@
                 @if($userShifts->count() > 0)
                     <div class="space-y-2">
                         @foreach($userShifts as $shift)
-                            <div class="flex items-center justify-between bg-gray-800 p-3 rounded border border-gray-600">
+                            <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-600">
                                 <div class="flex items-center space-x-3">
                                     <div class="w-3 h-3 rounded-full" style="background-color: {{ $shift['backgroundColor'] }}"></div>
                                     <div>
-                                        <span class="text-gray-200 font-medium">
+                                        <span class="text-gray-900 dark:text-gray-200 font-medium">
                                             {{ \Carbon\Carbon::parse($shift['start'])->format('M j, Y') }}
                                         </span>
-                                        <span class="text-gray-400 text-sm">
+                                        <span class="text-gray-600 dark:text-gray-400 text-sm">
                                             {{ \Carbon\Carbon::parse($shift['start'])->format('g:i A') }} - 
                                             {{ \Carbon\Carbon::parse($shift['end'])->format('g:i A') }}
                                         </span>
@@ -190,7 +191,7 @@
                                             $type = $shift['extendedProps']['type'] ?? 'work';
                                             $location = $shift['extendedProps']['location'];
                                         @endphp
-                                        <span class="text-gray-400 text-sm ml-2">
+                                        <span class="text-gray-600 dark:text-gray-400 text-sm ml-2">
                                             @if($type === 'holiday')
                                                 (Holiday)
                                             @elseif($type === 'meeting')
@@ -200,7 +201,7 @@
                                             @endif
                                         </span>
                                         @if($shift['extendedProps']['team_name'] !== 'No Team')
-                                            <span class="text-indigo-400 text-sm ml-2">
+                                            <span class="text-indigo-600 dark:text-indigo-400 text-sm ml-2">
                                                 [{{ $shift['extendedProps']['team_name'] }}]
                                             </span>
                                         @endif
@@ -229,7 +230,7 @@
                         @endforeach
                     </div>
                 @else
-                    <p class="text-gray-400">You have no upcoming shifts scheduled.</p>
+                    <p class="text-gray-600 dark:text-gray-400">You have no upcoming shifts scheduled.</p>
                 @endif
             </div>
     </div>
