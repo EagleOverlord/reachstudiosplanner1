@@ -148,6 +148,47 @@
             .fc-compact .fc .fc-col-header-cell-cushion { padding: 2px 4px; font-size: 0.8rem; }
             .fc-compact .fc .fc-timegrid-slot { height: 1.5rem; }
             .fc-compact .fc .fc-event { padding: 0 2px; font-size: 0.75rem; }
+
+            /* Hovercard styles */
+            .fc-hovercard {
+                position: fixed;
+                z-index: 10000;
+                min-width: 240px;
+                max-width: 320px;
+                background: #ffffff;
+                color: #111827;
+                border: 1px solid #e5e7eb;
+                border-radius: 0.5rem;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+                padding: 0.75rem 0.75rem;
+            }
+            .dark .fc-hovercard {
+                background: #111827;
+                color: #e5e7eb;
+                border-color: #374151;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+            }
+            .fc-hovercard .hc-title { font-weight: 600; margin-bottom: 0.25rem; }
+            .fc-hovercard .hc-meta { font-size: 0.85rem; color: #4b5563; }
+            .dark .fc-hovercard .hc-meta { color: #9ca3af; }
+            .fc-hovercard .hc-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.25rem; }
+            .fc-hovercard .hc-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+            .fc-hovercard a.hc-link { color: #2563eb; text-decoration: none; font-weight: 500; }
+            .fc-hovercard a.hc-link:hover { text-decoration: underline; }
+
+            /* Modal styles */
+            .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; align-items: center; justify-content: center; z-index: 11000; }
+            .modal { width: 100%; max-width: 420px; background: #ffffff; color: #111827; border-radius: 0.5rem; border: 1px solid #e5e7eb; box-shadow: 0 10px 25px rgba(0,0,0,0.15); }
+            .modal .modal-header { padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-weight: 600; }
+            .modal .modal-body { padding: 1rem; }
+            .modal .modal-footer { padding: 0.75rem 1rem; border-top: 1px solid #e5e7eb; display: flex; gap: 0.5rem; justify-content: flex-end; }
+            .dark .modal { background: #111827; color: #e5e7eb; border-color: #374151; box-shadow: 0 10px 25px rgba(0,0,0,0.35); }
+            .dark .modal .modal-header, .dark .modal .modal-footer { border-color: #374151; }
+            .btn { border: 1px solid #d1d5db; padding: 0.4rem 0.7rem; border-radius: 0.375rem; background: #f9fafb; color: #111827; }
+            .btn:hover { background: #f3f4f6; }
+            .btn-primary { background: #ef4444; border-color: #ef4444; color: white; }
+            .btn-primary:hover { background: #dc2626; border-color: #dc2626; }
+            .btn[disabled] { opacity: 0.6; cursor: not-allowed; }
         </style>
     @endpush
 
@@ -225,8 +266,46 @@
                                         }
                                     }
                                 });
+                                // Show hovercard on focus
+                                info.el.addEventListener('focus', () => {
+                                    const ev = info.event; const p = ev.extendedProps || {};
+                                    const start = ev.start; const end = ev.end;
+                                    const timeFmt = (d) => d ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '';
+                                    const dateFmt = (d) => d ? d.toLocaleDateString([], { year:'numeric', month:'short', day:'numeric' }) : '';
+                                    const html = `
+                                        <div class="hc-title">${(p.name || '').replace(/</g,'&lt;')}</div>
+                                        <div class="hc-meta">${dateFmt(start)} • ${timeFmt(start)} – ${timeFmt(end)}</div>
+                                        <div class="hc-row"><span class="opacity-70">Location:</span><span>${(p.location_display || '').replace(/</g,'&lt;')}</span></div>
+                                        <div class="hc-row"><span class="opacity-70">Team:</span><span>${(p.team_name_display || '').replace(/</g,'&lt;')}</span></div>
+                                        ${p.has_key ? '<div class="hc-row"><span class="opacity-70">Key holder:</span><span>Yes</span></div>' : ''}
+                                        <div class="hc-row"><span class="opacity-70">Type:</span><span>${(p.type || 'work')}</span></div>
+                                        <div class="hc-actions">${p.is_editable ? `<a class="hc-link" href="/schedule/${ev.id}/edit">Edit</a>` : ''}</div>
+                                    `;
+                                    const r = info.el.getBoundingClientRect();
+                                    const x = r.left + r.width + 8; const y = r.top + 8;
+                                    window.__showHovercard(html, x, y);
+                                });
+                                info.el.addEventListener('blur', () => window.__hideHovercard());
                             },
                             eventClick: info => { if (info.event.extendedProps.is_editable) { window.location.href = `/schedule/${info.event.id}/edit`; } },
+                            eventMouseEnter: info => {
+                                const ev = info.event;
+                                const p = ev.extendedProps || {};
+                                const start = ev.start; const end = ev.end;
+                                const timeFmt = (d) => d ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '';
+                                const dateFmt = (d) => d ? d.toLocaleDateString([], { year:'numeric', month:'short', day:'numeric' }) : '';
+                                const content = `
+                                    <div class="hc-title">${(p.name || '').replace(/</g,'&lt;')}</div>
+                                    <div class="hc-meta">${dateFmt(start)} • ${timeFmt(start)} – ${timeFmt(end)}</div>
+                                    <div class="hc-row"><span class="opacity-70">Location:</span><span>${(p.location_display || '').replace(/</g,'&lt;')}</span></div>
+                                    <div class="hc-row"><span class="opacity-70">Team:</span><span>${(p.team_name_display || '').replace(/</g,'&lt;')}</span></div>
+                                    ${p.has_key ? '<div class="hc-row"><span class="opacity-70">Key holder:</span><span>Yes</span></div>' : ''}
+                                    <div class="hc-row"><span class="opacity-70">Type:</span><span>${(p.type || 'work')}</span></div>
+                                    <div class="hc-actions">${p.is_editable ? `<a class="hc-link" href="/schedule/${ev.id}/edit">Edit</a>` : ''}</div>
+                                `;
+                                window.__showHovercard(content, info.jsEvent.clientX, info.jsEvent.clientY);
+                            },
+                            eventMouseLeave: () => { window.__hideHovercard(); },
                             eventAllow: (dropInfo, draggedEvent) => {
                                 // Only allow if event itself is editable
                                 if (!draggedEvent.extendedProps.is_editable) return false;
@@ -244,45 +323,59 @@
                                 });
                             },
                             eventDrop: info => {
-                                // Persist time change
-                                const csrf = '{{ csrf_token() }}';
-                                fetch(`/schedule/${info.event.id}/time`, {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'X-CSRF-TOKEN': csrf,
-                                        'Accept': 'application/json'
+                                // Confirm before persisting time change (custom modal)
+                                const fmt = (d) => d ? d.toLocaleString([], { year:'numeric', month:'short', day:'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '';
+                                const oldStart = (info.oldEvent && info.oldEvent.start) ? info.oldEvent.start : new Date(info.event.start.getTime() - info.delta.milliseconds);
+                                const oldEnd = (info.oldEvent && info.oldEvent.end) ? info.oldEvent.end : (info.event.end ? new Date(info.event.end.getTime() - info.delta.milliseconds) : null);
+                                const newStart = info.event.start;
+                                const newEnd = info.event.end || new Date(info.event.start.getTime()+60*60*1000);
+                                const message = `From: ${fmt(oldStart)}\nTo:     ${fmt(newStart)}\nNew end: ${fmt(newEnd)}`;
+                                window.openConfirmModal({
+                                    title: 'Move this shift?',
+                                    message,
+                                    onConfirm: (ui) => {
+                                        const csrf = '{{ csrf_token() }}';
+                                        ui.setLoading(true);
+                                        fetch(`/schedule/${info.event.id}/time`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                                            body: JSON.stringify({ start: newStart.toISOString(), end: newEnd.toISOString() })
+                                        }).then(r => r.json()).then(d => {
+                                            ui.setLoading(false);
+                                            if (!d.ok) { alert(d.message || 'Unable to update shift time'); info.revert(); }
+                                            ui.close();
+                                        }).catch(() => { ui.setLoading(false); info.revert(); ui.close(); });
                                     },
-                                    body: JSON.stringify({
-                                        start: info.event.start.toISOString(),
-                                        end: (info.event.end || new Date(info.event.start.getTime()+60*60*1000)).toISOString(),
-                                    })
-                                }).then(r => r.json()).then(d => {
-                                    if (!d.ok) {
-                                        alert(d.message || 'Unable to update shift time');
-                                        info.revert();
-                                    }
-                                }).catch(() => { info.revert(); });
+                                    onCancel: () => { info.revert(); }
+                                });
                             },
                             eventResize: info => {
-                                const csrf = '{{ csrf_token() }}';
-                                fetch(`/schedule/${info.event.id}/time`, {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'X-CSRF-TOKEN': csrf,
-                                        'Accept': 'application/json'
+                                // Confirm before persisting duration change (custom modal)
+                                const fmt = (d) => d ? d.toLocaleString([], { year:'numeric', month:'short', day:'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '';
+                                const prev = info.prevEvent || info.oldEvent;
+                                const oldStart = prev ? prev.start : info.event.start;
+                                const oldEnd = prev ? prev.end : info.event.end;
+                                const newStart = info.event.start;
+                                const newEnd = info.event.end;
+                                const message = `Start: ${fmt(newStart)}\nFrom end: ${fmt(oldEnd)}\nTo end:     ${fmt(newEnd)}`;
+                                window.openConfirmModal({
+                                    title: 'Change shift duration?',
+                                    message,
+                                    onConfirm: (ui) => {
+                                        const csrf = '{{ csrf_token() }}';
+                                        ui.setLoading(true);
+                                        fetch(`/schedule/${info.event.id}/time`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                                            body: JSON.stringify({ start: newStart.toISOString(), end: newEnd.toISOString() })
+                                        }).then(r => r.json()).then(d => {
+                                            ui.setLoading(false);
+                                            if (!d.ok) { alert(d.message || 'Unable to update shift duration'); info.revert(); }
+                                            ui.close();
+                                        }).catch(() => { ui.setLoading(false); info.revert(); ui.close(); });
                                     },
-                                    body: JSON.stringify({
-                                        start: info.event.start.toISOString(),
-                                        end: info.event.end.toISOString(),
-                                    })
-                                }).then(r => r.json()).then(d => {
-                                    if (!d.ok) {
-                                        alert(d.message || 'Unable to update shift duration');
-                                        info.revert();
-                                    }
-                                }).catch(() => { info.revert(); });
+                                    onCancel: () => { info.revert(); }
+                                });
                             },
                             eventContent: arg => {
                                 const props = arg.event.extendedProps;
@@ -342,6 +435,87 @@
                         return false;
                     }
                 };
+
+                // Simple hovercard utilities
+                (function initHovercard(){
+                    if (window.__hovercardEl) return;
+                    const el = document.createElement('div');
+                    el.className = 'fc-hovercard';
+                    el.setAttribute('role','tooltip');
+                    el.style.display = 'none';
+                    document.body.appendChild(el);
+                    let hideTimer = null;
+                    function position(x, y) {
+                        const margin = 12;
+                        const rect = el.getBoundingClientRect();
+                        let left = x + margin;
+                        let top = y + margin;
+                        if (left + rect.width > window.innerWidth - 8) left = x - rect.width - margin;
+                        if (top + rect.height > window.innerHeight - 8) top = y - rect.height - margin;
+                        el.style.left = left + 'px';
+                        el.style.top = top + 'px';
+                    }
+                    window.__showHovercard = (html, x, y) => {
+                        clearTimeout(hideTimer);
+                        el.innerHTML = html;
+                        el.style.display = 'block';
+                        el.setAttribute('aria-hidden','false');
+                        position(x, y);
+                    };
+                    window.__hideHovercard = () => {
+                        hideTimer = setTimeout(() => {
+                            el.style.display = 'none';
+                            el.setAttribute('aria-hidden','true');
+                        }, 100);
+                    };
+                    window.addEventListener('scroll', () => window.__hideHovercard(), { passive: true });
+                })();
+
+                // Confirm modal implementation
+                ;(function initConfirmModal(){
+                    if (window.openConfirmModal) return;
+                    const overlay = document.createElement('div');
+                    overlay.className = 'modal-overlay';
+                    overlay.innerHTML = `
+                        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-desc">
+                            <div class="modal-header" id="confirm-modal-title">Confirm</div>
+                            <div class="modal-body"><pre id="confirm-modal-desc" style="white-space: pre-wrap; font-family: inherit;"></pre></div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn" data-role="cancel">Cancel</button>
+                                <button type="button" class="btn btn-primary" data-role="confirm">Confirm</button>
+                            </div>
+                        </div>`;
+                    document.body.appendChild(overlay);
+                    const modal = overlay.querySelector('.modal');
+                    const titleEl = overlay.querySelector('#confirm-modal-title');
+                    const msgEl = overlay.querySelector('#confirm-modal-desc');
+                    const btnCancel = overlay.querySelector('[data-role="cancel"]');
+                    const btnConfirm = overlay.querySelector('[data-role="confirm"]');
+                    let onCancelCb = null; let onConfirmCb = null; let lastActive = null;
+                    function open(opts){
+                        titleEl.textContent = opts.title || 'Confirm';
+                        msgEl.textContent = opts.message || '';
+                        onCancelCb = opts.onCancel || null;
+                        onConfirmCb = opts.onConfirm || null;
+                        overlay.style.display = 'flex';
+                        lastActive = document.activeElement;
+                        btnConfirm.focus();
+                        document.addEventListener('keydown', onKey);
+                    }
+                    function close(){
+                        overlay.style.display = 'none';
+                        document.removeEventListener('keydown', onKey);
+                        if (lastActive && lastActive.focus) setTimeout(() => lastActive.focus(), 0);
+                    }
+                    function setLoading(loading){
+                        btnConfirm.disabled = !!loading; btnCancel.disabled = !!loading;
+                        btnConfirm.textContent = loading ? 'Saving…' : 'Confirm';
+                    }
+                    function onKey(e){ if (e.key === 'Escape'){ if (onCancelCb) onCancelCb(); close(); } }
+                    btnCancel.addEventListener('click', () => { if (onCancelCb) onCancelCb(); close(); });
+                    btnConfirm.addEventListener('click', () => { if (onConfirmCb) onConfirmCb({ setLoading, close }); });
+                    window.openConfirmModal = (opts) => open(opts || {});
+                })();
 
                 const attemptInit = () => {
                     if (buildCalendar()) { applyFilters(); return; }
@@ -417,24 +591,49 @@
                     });
                 };
 
+                // Bind confirm modal to destructive forms (Delete shift etc.)
+                function bindConfirmForms(){
+                    const forms = document.querySelectorAll('form[data-confirm]:not([data-confirm-bound])');
+                    forms.forEach(form => {
+                        form.setAttribute('data-confirm-bound','1');
+                        form.addEventListener('submit', function(e){
+                            if (form.getAttribute('data-confirmed') === '1') return; // already confirmed
+                            e.preventDefault();
+                            const title = form.getAttribute('data-confirm-title') || 'Are you sure?';
+                            const message = form.getAttribute('data-confirm-message') || '';
+                            window.openConfirmModal({
+                                title, message,
+                                onConfirm: (ui) => {
+                                    ui.setLoading(true);
+                                    form.setAttribute('data-confirmed','1');
+                                    form.submit();
+                                    ui.close();
+                                },
+                                onCancel: () => {}
+                            });
+                        });
+                    });
+                }
+
                 // Immediate attempt (script placed after DOM for this view)
                 if (document.readyState === 'complete' || document.readyState === 'interactive') {
                     attemptInit();
                     bindFilterEvents();
+                    bindConfirmForms();
                 } else {
-                    document.addEventListener('DOMContentLoaded', () => { attemptInit(); bindFilterEvents(); }, { once: true });
+                    document.addEventListener('DOMContentLoaded', () => { attemptInit(); bindFilterEvents(); bindConfirmForms(); }, { once: true });
                 }
 
                 // Re-init after Livewire navigation
                 document.addEventListener('livewire:navigated', () => setTimeout(() => { attemptInit(); applyFilters(); }, 0));
 
                 // Optional: expose manual refresh
-                window.refreshDashboardCalendar = () => { attemptInit(); applyFilters(); };
+                window.refreshDashboardCalendar = () => { attemptInit(); applyFilters(); bindConfirmForms(); };
             })();
         </script>
     @endpush
 
-    <a href="#calendar" class="skip-link">Skip to calendar</a>
+    <a href="#calendar" class="skip-link">Filters</a>
     <div class="container mx-auto px-4">
         <!-- Filters -->
         <div class="mb-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md p-4 text-sm">
@@ -606,8 +805,7 @@
                                         Edit
                                     </a>
                                     <form method="POST" action="{{ route('schedule.destroy', $shift['id']) }}" 
-                                          onsubmit="return confirm('Are you sure you want to delete this shift?')" 
-                                          class="inline">
+                                          class="inline" data-confirm data-confirm-title="Delete this shift?" data-confirm-message="This action cannot be undone.">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" 

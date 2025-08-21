@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ScheduleController;
+use App\Http\Controllers\StatsController;
 use App\Livewire\Settings\Appearance;
 use App\Livewire\Settings\Password;
 use App\Livewire\Settings\Profile;
@@ -37,6 +38,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('/schedule/{shift}', [ScheduleController::class, 'update'])->name('schedule.update');
     Route::delete('/schedule/{shift}', [ScheduleController::class, 'destroy'])->name('schedule.destroy');
     Route::post('/schedule/check-office-access', [ScheduleController::class, 'checkOfficeAccess'])->name('schedule.check-office-access');
+    
+    // Statistics
+    Route::get('/stats', [StatsController::class, 'index'])->name('stats.index');
     // Ajax: update start/end time via calendar drag/resize
     Route::post('/schedule/{shift}/time', [ScheduleController::class, 'updateTime'])->name('schedule.update-time');
 

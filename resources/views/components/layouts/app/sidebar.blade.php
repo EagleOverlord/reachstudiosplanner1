@@ -23,6 +23,38 @@
                     <flux:navlist.item icon="calendar" :href="route('schedule.create')" :current="request()->routeIs('schedule.create', 'schedule.edit')" wire:navigate>
                         Create Schedule
                     </flux:navlist.item>
+
+                    <!-- Statistics -->
+                    <flux:navlist.item icon="chart-bar" :href="route('stats.index')" :current="request()->routeIs('stats.index')" wire:navigate>
+                        Statistics
+                    </flux:navlist.item>
+                </flux:navlist.group>
+
+                <flux:navlist.group :heading="'Settings'" class="grid mt-4">
+                    <flux:navlist.item icon="user" :href="route('settings.profile')" :current="request()->routeIs('settings.profile')" wire:navigate>
+                        Profile
+                    </flux:navlist.item>
+                    <flux:navlist.item icon="key" :href="route('settings.password')" :current="request()->routeIs('settings.password')" wire:navigate>
+                        Password
+                    </flux:navlist.item>
+                    <flux:navlist.item icon="moon" :href="route('settings.appearance')" :current="request()->routeIs('settings.appearance')" wire:navigate>
+                        Appearance
+                    </flux:navlist.item>
+
+                    @if(auth()->user()->isAdmin())
+                        <flux:navlist.item icon="bell" :href="route('settings.notifications')" :current="request()->routeIs('settings.notifications')" wire:navigate>
+                            Notifications
+                        </flux:navlist.item>
+                        <flux:navlist.item icon="user-plus" :href="route('settings.create_user')" :current="request()->routeIs('settings.create_user')" wire:navigate>
+                            Create User
+                        </flux:navlist.item>
+                        <flux:navlist.item icon="users" :href="route('settings.users')" :current="request()->routeIs('settings.users')" wire:navigate>
+                            Users
+                        </flux:navlist.item>
+                        <flux:navlist.item icon="rectangle-group" :href="route('settings.teams')" :current="request()->routeIs('settings.teams')" wire:navigate>
+                            Teams
+                        </flux:navlist.item>
+                    @endif
                 </flux:navlist.group>
             </flux:navlist>
 
@@ -53,13 +85,7 @@
                         </div>
                     </flux:menu.radio.group>
 
-                    <flux:menu.separator />
-
-                    <flux:menu.radio.group>
-                        <flux:menu.item :href="route('settings.profile')" icon="cog" wire:navigate>
-                            Settings
-                        </flux:menu.item>
-                    </flux:menu.radio.group>
+                    
 
                     <flux:menu.separator />
 
@@ -98,13 +124,7 @@
                         </div>
                     </flux:menu.radio.group>
 
-                    <flux:menu.separator />
-
-                    <flux:menu.radio.group>
-                        <flux:menu.item :href="route('settings.profile')" icon="cog" wire:navigate>
-                            Settings
-                        </flux:menu.item>
-                    </flux:menu.radio.group>
+                    
 
                     <flux:menu.separator />
 
