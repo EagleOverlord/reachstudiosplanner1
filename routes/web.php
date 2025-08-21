@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\StatsController;
+use App\Http\Controllers\AccountController;
 use App\Livewire\Settings\Appearance;
 use App\Livewire\Settings\Password;
 use App\Livewire\Settings\Profile;
@@ -41,6 +42,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     // Statistics
     Route::get('/stats', [StatsController::class, 'index'])->name('stats.index');
+
+    // Account (personal settings hub)
+    Route::get('/account', [AccountController::class, 'index'])->name('account.index');
     // Ajax: update start/end time via calendar drag/resize
     Route::post('/schedule/{shift}/time', [ScheduleController::class, 'updateTime'])->name('schedule.update-time');
 
