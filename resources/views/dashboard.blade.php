@@ -1,7 +1,6 @@
 <x-layouts.app :title="__('Dashboard')">
     @push('styles')
-        <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.min.css" rel="stylesheet" 
-              crossorigin="anonymous">
+        
         <style>
             /* Base calendar styling */
             #calendar { max-width: 1500px; margin: 40px auto; background-color: white; padding: 0; border-radius: 6px; overflow: hidden; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
@@ -25,10 +24,10 @@
             }
             
             .fc-button-active, .fc-button:focus {
-                background-color: #3b82f6 !important;
-                border-color: #3b82f6 !important;
+                background-color: #ef4444 !important;
+                border-color: #ef4444 !important;
                 color: white !important;
-                box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5) !important;
+                box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.5) !important;
             }
             
             .fc-button:disabled {
@@ -91,10 +90,10 @@
             
             .dark .fc-button-active, 
             .dark .fc-button:focus {
-                background-color: #3b82f6 !important;
-                border-color: #3b82f6 !important;
+                background-color: #ef4444 !important;
+                border-color: #ef4444 !important;
                 color: white !important;
-                box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5) !important;
+                box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.5) !important;
             }
             
             .dark .fc-button:disabled {
@@ -147,8 +146,7 @@
     @endpush
 
     @push('scripts')
-        <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js" 
-                crossorigin="anonymous"></script>
+        
         <script>
             (function(){
                 const MAX_ATTEMPTS = 20; // ~2s with 100ms interval
@@ -163,6 +161,7 @@
                     const today = new Date().toISOString().slice(0,10);
                     try {
                         window.dashboardCalendar = new FullCalendar.Calendar(calendarEl, {
+                            plugins: [FullCalendar.dayGridPlugin, FullCalendar.timeGridPlugin, FullCalendar.listPlugin, FullCalendar.interactionPlugin],
                             initialView: 'timeGridWeek',
                             initialDate: today,
                             slotMinTime: '07:30:00',
@@ -170,29 +169,9 @@
                             allDaySlot: false,
                             slotDuration: '00:30:00',
                             slotLabelFormat: { hour: '2-digit', minute: '2-digit', meridiem: false, hour12: false },
-                            headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
+                            headerToolbar: { left: 'prev,next today', center: 'title', right: 'timeGridWeek,timeGridDay' },
                             events: @json($shifts),
                             eventDidMount: info => {
-                                const type = info.event.extendedProps.type || 'work';
-                                const location = info.event.extendedProps.location;
-                                
-                                // Color coding based on type first, then location for work shifts
-                                if (type === 'holiday') {
-                                    info.el.style.backgroundColor = '#FF9800';
-                                    info.el.style.borderColor = '#FF9800';
-                                } else if (type === 'meeting') {
-                                    info.el.style.backgroundColor = '#9C27B0';
-                                    info.el.style.borderColor = '#9C27B0';
-                                } else if (type === 'work') {
-                                    if (location === 'home') {
-                                        info.el.style.backgroundColor = '#2563eb';
-                                        info.el.style.borderColor = '#2563eb';
-                                    } else if (location === 'office') {
-                                        info.el.style.backgroundColor = '#22c55e';
-                                        info.el.style.borderColor = '#22c55e';
-                                    }
-                                }
-                                
                                 if (info.event.extendedProps.is_editable) {
                                     info.el.style.cursor = 'pointer';
                                     info.el.title = 'Click to edit your shift';
@@ -200,16 +179,42 @@
                             },
                             eventClick: info => { if (info.event.extendedProps.is_editable) { window.location.href = `/schedule/${info.event.id}/edit`; } },
                             eventContent: arg => {
-                                const title = arg.event.title || '';
-                                const hasKey = arg.event.extendedProps.has_key;
-                                const keyIcon = hasKey ? ' <span title="Holds key">🔑</span>' : '';
-                                const isEditable = arg.event.extendedProps.is_editable;
-                                const editIcon = isEditable ? ' <span title="Click to edit" style="color: #fbbf24;">✏️</span>' : '';
-                                const name = title.split(' - ')[0];
-                                const rest = title.substring(name.length);
-                                return { html: `<b>${name}${keyIcon}${editIcon}${rest}</b>` };
+                                const props = arg.event.extendedProps;
+                                const name = props.name || '';
+                                const location = props.location_display || '';
+                                const team = props.team_name_display || '';
+                                const hasKey = props.has_key;
+                                const isEditable = props.is_editable;
+
+                                const container = document.createElement('div');
+                                container.style.fontWeight = 'bold';
+
+                                const nameSpan = document.createElement('span');
+                                nameSpan.textContent = name;
+                                container.appendChild(nameSpan);
+
+                                if (hasKey) {
+                                    const keyIcon = document.createElement('span');
+                                    keyIcon.title = 'Holds key';
+                                    keyIcon.textContent = ' 🔑';
+                                    container.appendChild(keyIcon);
+                                }
+
+                                if (isEditable) {
+                                    const editIcon = document.createElement('span');
+                                    editIcon.title = 'Click to edit';
+                                    editIcon.style.color = '#fbbf24';
+                                    editIcon.textContent = ' ✏️';
+                                    container.appendChild(editIcon);
+                                }
+
+                                const detailsSpan = document.createElement('span');
+                                detailsSpan.textContent = ` - ${location} (${team})`;
+                                container.appendChild(detailsSpan);
+
+                                return { domNodes: [container] };
                             },
-                            eventOverlap: true,
+                            eventOverlap: false,
                             eventMaxStack: 20,
                             dayMaxEvents: false,
                             dayMaxEventRows: false,
@@ -281,20 +286,7 @@
                 </ul>
             </div>
 
-            <!-- Teams Legend -->
-            @if(count($teams) > 0)
-            <div>
-                <h4 class="font-medium mb-2 text-gray-600 dark:text-gray-300">Teams</h4>
-                <ul class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-2">
-                    @foreach($teams as $teamKey => $teamName)
-                        <li class="flex items-center space-x-2">
-                            <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
-                            <span class="text-gray-600 dark:text-gray-300 text-xs">{{ $teamName }}</span>
-                        </li>
-                    @endforeach
-                </ul>
-            </div>
-            @endif
+            
         </div>
             
             <!-- User's Upcoming Shifts Section -->

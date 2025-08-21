@@ -6,6 +6,7 @@ use App\Models\Shift;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class ScheduleController extends Controller
 {
@@ -21,34 +22,30 @@ class ScheduleController extends Controller
      */
     private function getNextAvailableWeekday($user)
     {
-        $currentDate = Carbon::today();
-        
-        // Start checking from today
-        $checkDate = $currentDate->copy();
-        
-        // Loop through dates until we find an available weekday
-        for ($i = 0; $i < 30; $i++) { // Check up to 30 days ahead
-            // Skip weekends
-            if ($checkDate->isWeekday()) {
-                // Check if user has any shifts on this date
-                $hasShift = Shift::where('user_id', $user->id)
-                    ->whereDate('start_time', $checkDate)
-                    ->exists();
-                
-                if (!$hasShift) {
-                    return $checkDate->format('Y-m-d');
-                }
+        $startDate = Carbon::today();
+        $endDate = $startDate->copy()->addDays(30);
+
+        // Fetch all shifts for the user in the next 30 days in a single query
+        $shifts = Shift::where('user_id', $user->id)
+            ->whereBetween('start_time', [$startDate, $endDate])
+            ->pluck(DB::raw('DATE(start_time)'))
+            ->flip();
+
+        $checkDate = $startDate->copy();
+
+        for ($i = 0; $i < 30; $i++) {
+            if ($checkDate->isWeekday() && !isset($shifts[$checkDate->toDateString()])) {
+                return $checkDate->format('Y-m-d');
             }
-            
             $checkDate->addDay();
         }
-        
-        // If no available date found in 30 days, return tomorrow or next Monday
+
+        // Fallback logic remains the same
         $fallbackDate = Carbon::tomorrow();
         while (!$fallbackDate->isWeekday()) {
             $fallbackDate->addDay();
         }
-        
+
         return $fallbackDate->format('Y-m-d');
     }
 
@@ -100,80 +97,90 @@ class ScheduleController extends Controller
             'end_time' => 'required|date_format:H:i',
             'location' => 'required|in:home,office,meeting',
             'type' => 'required|in:work,holiday,meeting',
-            'consecutive_days' => 'nullable|integer|min:1|max:10',
+            'consecutive_days' => 'nullable|integer|min:1|max:5',
         ]);
 
         $user = Auth::user();
         $consecutiveDays = $validated['consecutive_days'] ?? 1;
         
-        // Combine date and time for start and end
         $startDateTime = Carbon::parse($validated['start_date'] . ' ' . $validated['start_time']);
         $endDateTime = Carbon::parse($validated['end_date'] . ' ' . $validated['end_time']);
         
-        // Validate that end is after start
         if ($endDateTime <= $startDateTime) {
             return back()->withErrors(['end_time' => 'End time must be after start time.'])->withInput();
         }
 
         $durationHours = $endDateTime->diffInHours($startDateTime, true);
+        
         $warnings = [];
         $createdShifts = [];
-        
-        // Create shifts for consecutive days
-        for ($day = 0; $day < $consecutiveDays; $day++) {
-            $currentStartDate = $startDateTime->copy()->addDays($day);
-            $currentEndDate = $endDateTime->copy()->addDays($day);
-            
-            // Skip weekends for work and holiday shifts
-            if (($validated['type'] === 'work' || $validated['type'] === 'holiday') && !$currentStartDate->isWeekday()) {
-                // Add extra days to compensate for skipped weekends
-                $consecutiveDays++;
-                continue;
-            }
-            
-            // Check if user already has a shift on this date
-            $existingShift = Shift::where('user_id', Auth::id())
-                ->whereDate('start_time', $currentStartDate->toDateString())
-                ->first();
-                
-            if ($existingShift) {
-                $warnings[] = "Skipped {$currentStartDate->format('M j, Y')} - you already have a shift scheduled.";
-                continue;
-            }
 
-            // Check for duration warnings (only for work shifts)
-            if ($validated['type'] === 'work' && $durationHours < 8) {
-                $warnings[] = "Warning: Your scheduled shifts are only {$durationHours} hours each, which is less than the standard 8-hour workday.";
-            }
-
-            // Check for office access if location is office and type is work
-            if ($validated['location'] === 'office' && $validated['type'] === 'work' && !$user->hasKeys()) {
-                $date = $currentStartDate->toDateString();
-                $usersWithKeysInOffice = Shift::whereDate('start_time', $date)
-                    ->where('location', 'office')
-                    ->where('type', 'work')
-                    ->whereHas('user', function($query) {
-                        $query->where('keys_status', 'yes');
-                    })
-                    ->with('user:id,name,keys_status')
-                    ->get();
-
-                if ($usersWithKeysInOffice->count() === 0) {
-                    $warnings[] = "Warning: No one with keys is scheduled for office work on {$currentStartDate->format('M j, Y')}. You may not be able to access the building.";
+        DB::transaction(function () use ($validated, $user, $startDateTime, $endDateTime, $consecutiveDays, $durationHours, &$warnings, &$createdShifts) {
+            $datesToCheck = [];
+            $currentDate = $startDateTime->copy();
+            for ($day = 0; $day < $consecutiveDays; $day++) {
+                $d = $currentDate->copy()->addDays($day);
+                if (($validated['type'] === 'work' || $validated['type'] === 'holiday') && !$d->isWeekday()) {
+                    $consecutiveDays++;
+                    continue;
                 }
+                $datesToCheck[] = $d->toDateString();
             }
 
-            // Create the shift
-            $shift = Shift::create([
-                'user_id' => Auth::id(),
-                'start_time' => $currentStartDate,
-                'end_time' => $currentEndDate,
-                'location' => $validated['location'],
-                'type' => $validated['type'],
-            ]);
-            
-            $createdShifts[] = $currentStartDate->format('M j, Y');
-        }
+            $existingShifts = Shift::where('user_id', Auth::id())
+                ->whereIn(DB::raw('DATE(start_time)'), $datesToCheck)
+                ->lockForUpdate()
+                ->pluck(DB::raw('DATE(start_time)'))
+                ->flip();
+
+            $keyHoldersInOffice = Shift::whereIn(DB::raw('DATE(start_time)'), $datesToCheck)
+                ->where('location', 'office')
+                ->where('type', 'work')
+                ->whereHas('user', function($query) {
+                    $query->where('keys_status', 'yes');
+                })
+                ->with('user:id,name,keys_status')
+                ->get()
+                ->groupBy(function($shift) {
+                    return $shift->start_time->format('Y-m-d');
+                });
+
+            for ($day = 0; $day < $consecutiveDays; $day++) {
+                $currentStartDate = $startDateTime->copy()->addDays($day);
+                $currentEndDate = $endDateTime->copy()->addDays($day);
+                
+                if (($validated['type'] === 'work' || $validated['type'] === 'holiday') && !$currentStartDate->isWeekday()) {
+                    continue;
+                }
+                
+                $currentDateString = $currentStartDate->toDateString();
+
+                if (isset($existingShifts[$currentDateString])) {
+                    $warnings[] = "Skipped {$currentStartDate->format('M j, Y')} - you already have a shift scheduled.";
+                    continue;
+                }
+
+                if ($validated['type'] === 'work' && $durationHours < 8) {
+                    $warnings[] = "Warning: Your scheduled shifts are only {$durationHours} hours each, which is less than the standard 8-hour workday.";
+                }
+
+                if ($validated['location'] === 'office' && $validated['type'] === 'work' && !$user->hasKeys()) {
+                    if (!isset($keyHoldersInOffice[$currentDateString]) || $keyHoldersInOffice[$currentDateString]->count() === 0) {
+                        $warnings[] = "Warning: No one with keys is scheduled for office work on {$currentStartDate->format('M j, Y')}. You may not be able to access the building.";
+                    }
+                }
+
+                $shift = Shift::create([
+                    'user_id' => Auth::id(),
+                    'start_time' => $currentStartDate,
+                    'end_time' => $currentEndDate,
+                    'location' => $validated['location'],
+                    'type' => $validated['type'],
+                ]);
+                
+                $createdShifts[] = $currentStartDate->format('M j, Y');
+            }
+        });
 
         $message = count($createdShifts) > 1 
             ? 'Schedules created successfully for: ' . implode(', ', $createdShifts) . '!'

@@ -12,18 +12,28 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
         $teams = Team::getTeamsArray(); // Get all teams for the legend
-        
-        $shifts = Shift::with('user')->get()->map(function ($shift) use ($user) {
+
+        // Pre-load all teams into a key-value array for quick lookup
+        $allTeams = Team::pluck('name', 'key');
+
+        $shifts = Shift::with('user')->get()->map(function ($shift) use ($user, $allTeams) {
             $userTeam = $shift->user->team;
-            $teamName = $userTeam ? Team::getTeamName($userTeam) : 'No Team';
+            // Look up the team name from the pre-loaded array instead of querying the database
+            $teamName = $allTeams[$userTeam] ?? 'No Team';
             
+            $userName = $shift->user->name;
+            $location = $shift->location;
+
             return [
                 'id' => $shift->id,
-                'title' => $shift->user->name . ' - ' . ucfirst($shift->location) . ' (' . $teamName . ')',
+                'title' => htmlspecialchars($userName) . ' - ' . ucfirst($location) . ' (' . htmlspecialchars($teamName) . ')',
                 'start' => $shift->start_time->format('Y-m-d\TH:i:s'),
                 'end' => $shift->end_time->format('Y-m-d\TH:i:s'),
                 'extendedProps' => [
-                    'location' => $shift->location,
+                    'name' => $userName,
+                    'location_display' => ucfirst($location),
+                    'team_name_display' => $teamName,
+                    'location' => $location,
                     'type' => $shift->type ?? 'work', // Add the missing type field
                     'has_key' => $shift->user->keys_status === 'yes',
                     'user_id' => $shift->user_id,
@@ -33,17 +43,7 @@ class DashboardController extends Controller
                     'is_upcoming' => $shift->isUpcoming(),
                     'is_editable' => $shift->user_id === $user->id && $shift->isUpcoming(),
                 ],
-                'backgroundColor' => match ($shift->type ?? 'work') {
-                    'holiday' => '#FF9800',
-                    'meeting' => '#9C27B0',
-                    'work' => match ($shift->location) {
-                        'office' => '#4CAF50',
-                        'home' => '#2196F3',
-                        'meeting' => '#9C27B0',
-                        default => '#9E9E9E',
-                    },
-                    default => '#9E9E9E',
-                },
+                'backgroundColor' => $shift->getEventColor(),
             ];
         });
 

@@ -64,7 +64,7 @@
             
             <!-- Multi-day booking section -->
             @if(!isset($shift))
-            <div id="multi-day-section" style="display: none;">
+            <div id="multi-day-section">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Number of Consecutive Days</label>
                 <select name="consecutive_days" id="consecutive_days" 
                         class="w-full border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
@@ -73,11 +73,6 @@
                     <option value="3">3 Days</option>
                     <option value="4">4 Days</option>
                     <option value="5">5 Days</option>
-                    <option value="6">6 Days</option>
-                    <option value="7">7 Days</option>
-                    <option value="8">8 Days</option>
-                    <option value="9">9 Days</option>
-                    <option value="10">10 Days</option>
                 </select>
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Will create shifts for consecutive weekdays starting from the selected start date. Weekends will be automatically skipped.
