@@ -37,6 +37,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('/schedule/{shift}', [ScheduleController::class, 'update'])->name('schedule.update');
     Route::delete('/schedule/{shift}', [ScheduleController::class, 'destroy'])->name('schedule.destroy');
     Route::post('/schedule/check-office-access', [ScheduleController::class, 'checkOfficeAccess'])->name('schedule.check-office-access');
+    // Ajax: update start/end time via calendar drag/resize
+    Route::post('/schedule/{shift}/time', [ScheduleController::class, 'updateTime'])->name('schedule.update-time');
 
     Route::get('/settings/profile', Profile::class)->name('settings.profile');
     Route::get('/settings/password', \App\Livewire\Settings\Password::class)->name('settings.password');

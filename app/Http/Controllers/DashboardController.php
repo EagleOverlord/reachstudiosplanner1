@@ -16,19 +16,23 @@ class DashboardController extends Controller
         // Pre-load all teams into a key-value array for quick lookup
         $allTeams = Team::pluck('name', 'key');
 
-        $shifts = Shift::with('user')->get()->map(function ($shift) use ($user, $allTeams) {
+        $shifts = Shift::with(['user:id,name,team,keys_status'])->get()->map(function ($shift) use ($user, $allTeams) {
             $userTeam = $shift->user->team;
             // Look up the team name from the pre-loaded array instead of querying the database
             $teamName = $allTeams[$userTeam] ?? 'No Team';
             
             $userName = $shift->user->name;
             $location = $shift->location;
+            $isEditable = $shift->user_id === $user->id && $shift->isUpcoming();
 
             return [
                 'id' => $shift->id,
                 'title' => htmlspecialchars($userName) . ' - ' . ucfirst($location) . ' (' . htmlspecialchars($teamName) . ')',
                 'start' => $shift->start_time->format('Y-m-d\TH:i:s'),
                 'end' => $shift->end_time->format('Y-m-d\TH:i:s'),
+                'editable' => $isEditable,
+                'startEditable' => $isEditable,
+                'durationEditable' => $isEditable,
                 'extendedProps' => [
                     'name' => $userName,
                     'location_display' => ucfirst($location),
@@ -41,7 +45,7 @@ class DashboardController extends Controller
                     'team_name' => $teamName,
                     'is_own_shift' => $shift->user_id === $user->id,
                     'is_upcoming' => $shift->isUpcoming(),
-                    'is_editable' => $shift->user_id === $user->id && $shift->isUpcoming(),
+                    'is_editable' => $isEditable,
                 ],
                 'backgroundColor' => $shift->getEventColor(),
             ];

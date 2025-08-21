@@ -14,7 +14,13 @@ class ScheduleController extends Controller
     {
         $user = Auth::user();
         $defaultDate = $this->getNextAvailableWeekday($user);
-        return view('schedule.create', compact('user', 'defaultDate'));
+        $prefill = [
+            'start_date' => request('start_date'),
+            'start_time' => request('start_time'),
+            'end_date' => request('end_date'),
+            'end_time' => request('end_time'),
+        ];
+        return view('schedule.create', compact('user', 'defaultDate', 'prefill'));
     }
     
     /**
@@ -303,5 +309,39 @@ class ScheduleController extends Controller
         $shift->delete();
         
         return redirect()->route('dashboard')->with('success', 'Schedule deleted successfully!');
+    }
+
+    /**
+     * Update shift start/end times from calendar drag/resize.
+     */
+    public function updateTime(Request $request, Shift $shift)
+    {
+        $user = Auth::user();
+
+        // Only owner can update, and only future shifts
+        if (!$shift->belongsToUser($user)) {
+            return response()->json(['ok' => false, 'message' => 'Forbidden'], 403);
+        }
+        if (!$shift->isUpcoming()) {
+            return response()->json(['ok' => false, 'message' => 'Cannot edit past shifts'], 422);
+        }
+
+        $data = $request->validate([
+            'start' => 'required|date',
+            'end' => 'required|date',
+        ]);
+
+        $start = Carbon::parse($data['start']);
+        $end = Carbon::parse($data['end']);
+        if ($end <= $start) {
+            return response()->json(['ok' => false, 'message' => 'End must be after start'], 422);
+        }
+
+        $shift->update([
+            'start_time' => $start,
+            'end_time' => $end,
+        ]);
+
+        return response()->json(['ok' => true]);
     }
 }

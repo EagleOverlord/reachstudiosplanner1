@@ -14,12 +14,12 @@
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Start Date & Time</label>
                     <div class="flex space-x-2">
                         <input type="date" name="start_date" id="start_date" required 
-                               value="{{ isset($shift) ? $shift->start_time->format('Y-m-d') : old('start_date', $defaultDate ?? \Carbon\Carbon::tomorrow()->format('Y-m-d')) }}"
+                               value="{{ isset($shift) ? $shift->start_time->format('Y-m-d') : old('start_date', ($prefill['start_date'] ?? ($defaultDate ?? \Carbon\Carbon::tomorrow()->format('Y-m-d')))) }}"
                                class="flex-1 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
                         <select name="start_time" id="start_time" required 
                                 class="flex-1 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
                             @php
-                                $currentStartTime = isset($shift) ? $shift->start_time->format('H:i') : old('start_time', '09:00');
+                                $currentStartTime = isset($shift) ? $shift->start_time->format('H:i') : old('start_time', $prefill['start_time'] ?? '09:00');
                             @endphp
                             @for($hour = 6; $hour <= 23; $hour++)
                                 @for($minute = 0; $minute < 60; $minute += 15)
@@ -39,12 +39,12 @@
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">End Date & Time</label>
                     <div class="flex space-x-2">
                         <input type="date" name="end_date" id="end_date" required 
-                               value="{{ isset($shift) ? $shift->end_time->format('Y-m-d') : old('end_date', $defaultDate ?? \Carbon\Carbon::tomorrow()->format('Y-m-d')) }}"
+                               value="{{ isset($shift) ? $shift->end_time->format('Y-m-d') : old('end_date', ($prefill['end_date'] ?? ($defaultDate ?? \Carbon\Carbon::tomorrow()->format('Y-m-d')))) }}"
                                class="flex-1 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
                         <select name="end_time" id="end_time" required 
                                 class="flex-1 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
                             @php
-                                $currentEndTime = isset($shift) ? $shift->end_time->format('H:i') : old('end_time', '17:00');
+                                $currentEndTime = isset($shift) ? $shift->end_time->format('H:i') : old('end_time', $prefill['end_time'] ?? '17:00');
                             @endphp
                             @for($hour = 6; $hour <= 23; $hour++)
                                 @for($minute = 0; $minute < 60; $minute += 15)
@@ -130,7 +130,7 @@
                     <!-- Dynamic content will be inserted here -->
                 </div>
             </div>
-            <div id="key-warning" class="hidden bg-red-100 dark:bg-red-900 border border-red-300 dark:border-red-700 text-red-800 dark:text-red-200 px-4 py-3 rounded mb-4">
+            <div id="key-warning" role="alert" class="hidden bg-red-100 dark:bg-red-900 border border-red-300 dark:border-red-700 text-red-800 dark:text-red-200 px-4 py-3 rounded mb-4">
                 <div class="flex">
                     <div class="py-1">
                         <svg class="fill-current h-4 w-4 text-red-600 dark:text-red-500 mr-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
@@ -248,6 +248,7 @@
                     
                     if (endDateTime <= startDateTime) {
                         warningDiv.classList.remove('hidden');
+                        warningDiv.setAttribute('role', 'alert');
                         warningMessage.textContent = 'End time must be after start time.';
                         return;
                     }
@@ -258,13 +259,16 @@
                     // Only show duration warning for work shifts
                     if (workType.checked && diffHours < 8) {
                         warningDiv.classList.remove('hidden');
+                        warningDiv.setAttribute('role', 'alert');
                         const actualHours = Math.round(diffHours * 10) / 10;
                         warningMessage.textContent = `The selected duration is ${actualHours} hours, which is less than the standard 8-hour workday.`;
                     } else {
                         warningDiv.classList.add('hidden');
+                        warningDiv.removeAttribute('role');
                     }
                 } else {
                     warningDiv.classList.add('hidden');
+                    warningDiv.removeAttribute('role');
                 }
             }
 

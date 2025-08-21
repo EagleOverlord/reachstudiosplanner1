@@ -142,6 +142,12 @@
                 align-items: center !important;
                 gap: 0.5rem !important;
             }
+
+            /* Compact calendar mode */
+            .fc-compact .fc .fc-timegrid-slot-label { font-size: 0.75rem; }
+            .fc-compact .fc .fc-col-header-cell-cushion { padding: 2px 4px; font-size: 0.8rem; }
+            .fc-compact .fc .fc-timegrid-slot { height: 1.5rem; }
+            .fc-compact .fc .fc-event { padding: 0 2px; font-size: 0.75rem; }
         </style>
     @endpush
 
@@ -151,6 +157,9 @@
             (function(){
                 const MAX_ATTEMPTS = 20; // ~2s with 100ms interval
                 let attempts = 0;
+
+                // Preserve the original list of events for client-side filtering
+                window.dashboardOriginalEvents = @json($shifts);
 
                 const buildCalendar = () => {
                     const calendarEl = document.getElementById('calendar');
@@ -166,18 +175,115 @@
                             initialDate: today,
                             slotMinTime: '07:30:00',
                             slotMaxTime: '19:00:00',
+                            snapDuration: '00:15:00',
                             allDaySlot: false,
                             slotDuration: '00:30:00',
                             slotLabelFormat: { hour: '2-digit', minute: '2-digit', meridiem: false, hour12: false },
                             headerToolbar: { left: 'prev,next today', center: 'title', right: 'timeGridWeek,timeGridDay' },
-                            events: @json($shifts),
+                            events: window.dashboardOriginalEvents,
+                            editable: true,
+                            nowIndicator: true,
+                            businessHours: {
+                                daysOfWeek: [1,2,3,4,5],
+                                startTime: '09:00',
+                                endTime: '17:00',
+                            },
+                            weekends: true,
+                            weekNumbers: false,
+                            selectable: true,
+                            selectMirror: true,
+                            select: info => {
+                                const start = info.start;
+                                const end = info.end;
+                                const toParts = d => ({
+                                    date: d.toISOString().slice(0,10),
+                                    time: d.toISOString().slice(11,16),
+                                });
+                                const s = toParts(start);
+                                const e = toParts(end);
+                                const params = new URLSearchParams({
+                                    start_date: s.date,
+                                    start_time: s.time,
+                                    end_date: e.date,
+                                    end_time: e.time,
+                                });
+                                window.location.href = `/schedule/new?${params.toString()}`;
+                            },
                             eventDidMount: info => {
                                 if (info.event.extendedProps.is_editable) {
                                     info.el.style.cursor = 'pointer';
                                     info.el.title = 'Click to edit your shift';
                                 }
+                                // Make events keyboard-activatable
+                                info.el.setAttribute('tabindex', '0');
+                                info.el.setAttribute('role', 'button');
+                                info.el.addEventListener('keydown', (e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        if (info.event.extendedProps.is_editable) {
+                                            window.location.href = `/schedule/${info.event.id}/edit`;
+                                        }
+                                    }
+                                });
                             },
                             eventClick: info => { if (info.event.extendedProps.is_editable) { window.location.href = `/schedule/${info.event.id}/edit`; } },
+                            eventAllow: (dropInfo, draggedEvent) => {
+                                // Only allow if event itself is editable
+                                if (!draggedEvent.extendedProps.is_editable) return false;
+                                // Prevent overlaps with same user's other events
+                                const start = dropInfo.start;
+                                const end = dropInfo.end;
+                                const uid = draggedEvent.extendedProps.user_id;
+                                const evts = window.dashboardCalendar.getEvents();
+                                return !evts.some(e => {
+                                    if (e.id == draggedEvent.id) return false;
+                                    const p = e.extendedProps || {};
+                                    if (p.user_id !== uid) return false;
+                                    const es = e.start, ee = e.end;
+                                    return es && ee && start < ee && end > es; // overlap
+                                });
+                            },
+                            eventDrop: info => {
+                                // Persist time change
+                                const csrf = '{{ csrf_token() }}';
+                                fetch(`/schedule/${info.event.id}/time`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': csrf,
+                                        'Accept': 'application/json'
+                                    },
+                                    body: JSON.stringify({
+                                        start: info.event.start.toISOString(),
+                                        end: (info.event.end || new Date(info.event.start.getTime()+60*60*1000)).toISOString(),
+                                    })
+                                }).then(r => r.json()).then(d => {
+                                    if (!d.ok) {
+                                        alert(d.message || 'Unable to update shift time');
+                                        info.revert();
+                                    }
+                                }).catch(() => { info.revert(); });
+                            },
+                            eventResize: info => {
+                                const csrf = '{{ csrf_token() }}';
+                                fetch(`/schedule/${info.event.id}/time`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': csrf,
+                                        'Accept': 'application/json'
+                                    },
+                                    body: JSON.stringify({
+                                        start: info.event.start.toISOString(),
+                                        end: info.event.end.toISOString(),
+                                    })
+                                }).then(r => r.json()).then(d => {
+                                    if (!d.ok) {
+                                        alert(d.message || 'Unable to update shift duration');
+                                        info.revert();
+                                    }
+                                }).catch(() => { info.revert(); });
+                            },
                             eventContent: arg => {
                                 const props = arg.event.extendedProps;
                                 const name = props.name || '';
@@ -196,16 +302,26 @@
                                 if (hasKey) {
                                     const keyIcon = document.createElement('span');
                                     keyIcon.title = 'Holds key';
+                                    keyIcon.setAttribute('aria-hidden', 'true');
                                     keyIcon.textContent = ' 🔑';
                                     container.appendChild(keyIcon);
+                                    const keySr = document.createElement('span');
+                                    keySr.className = 'sr-only';
+                                    keySr.textContent = ' Key holder';
+                                    container.appendChild(keySr);
                                 }
 
                                 if (isEditable) {
                                     const editIcon = document.createElement('span');
                                     editIcon.title = 'Click to edit';
                                     editIcon.style.color = '#fbbf24';
+                                    editIcon.setAttribute('aria-hidden', 'true');
                                     editIcon.textContent = ' ✏️';
                                     container.appendChild(editIcon);
+                                    const editSr = document.createElement('span');
+                                    editSr.className = 'sr-only';
+                                    editSr.textContent = ' Editable';
+                                    container.appendChild(editSr);
                                 }
 
                                 const detailsSpan = document.createElement('span');
@@ -228,29 +344,177 @@
                 };
 
                 const attemptInit = () => {
-                    if (buildCalendar()) return;
+                    if (buildCalendar()) { applyFilters(); return; }
                     attempts++;
                     if (attempts < MAX_ATTEMPTS) setTimeout(attemptInit, 100);
+                };
+
+                // Filtering helpers
+                const getFilterState = () => {
+                    const myOnly = document.getElementById('filter-my')?.checked || false;
+                    const team = document.getElementById('filter-team')?.value || '';
+                    const types = Array.from(document.querySelectorAll('.filter-type:checked')).map(i => i.value);
+                    const locations = Array.from(document.querySelectorAll('.filter-location:checked')).map(i => i.value);
+                    return { myOnly, team, types, locations };
+                };
+
+                const applyFilters = () => {
+                    if (!window.dashboardCalendar) return;
+                    const { myOnly, team, types, locations } = getFilterState();
+                    const filtered = (window.dashboardOriginalEvents || []).filter(ev => {
+                        const p = ev.extendedProps || {};
+                        if (myOnly && !p.is_own_shift) return false;
+                        if (team && p.user_team !== team) return false;
+                        if (types.length && !types.includes(p.type || 'work')) return false;
+                        if (locations.length && !locations.includes(p.location)) return false;
+                        return true;
+                    });
+                    window.dashboardCalendar.removeAllEvents();
+                    window.dashboardCalendar.addEventSource(filtered);
+                    const status = document.getElementById('calendar-status');
+                    if (status) status.textContent = `Showing ${filtered.length} events`;
+                };
+
+                const bindFilterEvents = () => {
+                    const my = document.getElementById('filter-my');
+                    const team = document.getElementById('filter-team');
+                    const typeBoxes = document.querySelectorAll('.filter-type');
+                    const locBoxes = document.querySelectorAll('.filter-location');
+                    const resetBtn = document.getElementById('filter-reset');
+                    const jumpDate = document.getElementById('jump-date');
+                    const toggleWeekends = document.getElementById('toggle-weekends');
+                    const toggleWeeknums = document.getElementById('toggle-weeknums');
+                    const toggleCompact = document.getElementById('toggle-compact');
+
+                    my && my.addEventListener('change', applyFilters);
+                    team && team.addEventListener('change', applyFilters);
+                    typeBoxes.forEach(cb => cb.addEventListener('change', applyFilters));
+                    locBoxes.forEach(cb => cb.addEventListener('change', applyFilters));
+                    resetBtn && resetBtn.addEventListener('click', () => {
+                        if (my) my.checked = false;
+                        if (team) team.value = '';
+                        typeBoxes.forEach(cb => cb.checked = true);
+                        locBoxes.forEach(cb => cb.checked = true);
+                        applyFilters();
+                    });
+
+                    jumpDate && jumpDate.addEventListener('change', (e) => {
+                        if (window.dashboardCalendar && e.target.value) {
+                            window.dashboardCalendar.gotoDate(e.target.value);
+                        }
+                    });
+                    toggleWeekends && toggleWeekends.addEventListener('change', (e) => {
+                        window.dashboardCalendar && window.dashboardCalendar.setOption('weekends', !!e.target.checked);
+                    });
+                    toggleWeeknums && toggleWeeknums.addEventListener('change', (e) => {
+                        window.dashboardCalendar && window.dashboardCalendar.setOption('weekNumbers', !!e.target.checked);
+                    });
+                    toggleCompact && toggleCompact.addEventListener('change', (e) => {
+                        const el = document.getElementById('calendar');
+                        if (!el) return;
+                        if (e.target.checked) el.classList.add('fc-compact');
+                        else el.classList.remove('fc-compact');
+                    });
                 };
 
                 // Immediate attempt (script placed after DOM for this view)
                 if (document.readyState === 'complete' || document.readyState === 'interactive') {
                     attemptInit();
+                    bindFilterEvents();
                 } else {
-                    document.addEventListener('DOMContentLoaded', attemptInit, { once: true });
+                    document.addEventListener('DOMContentLoaded', () => { attemptInit(); bindFilterEvents(); }, { once: true });
                 }
 
                 // Re-init after Livewire navigation
-                document.addEventListener('livewire:navigated', () => setTimeout(attemptInit, 0));
+                document.addEventListener('livewire:navigated', () => setTimeout(() => { attemptInit(); applyFilters(); }, 0));
 
                 // Optional: expose manual refresh
-                window.refreshDashboardCalendar = attemptInit;
+                window.refreshDashboardCalendar = () => { attemptInit(); applyFilters(); };
             })();
         </script>
     @endpush
 
+    <a href="#calendar" class="skip-link">Skip to calendar</a>
     <div class="container mx-auto px-4">
-        <div id='calendar'></div>
+        <!-- Filters -->
+        <div class="mb-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md p-4 text-sm">
+            <h3 class="font-semibold mb-3 text-gray-700 dark:text-gray-200">Filters</h3>
+            <div class="flex flex-wrap items-end gap-4">
+                <!-- My Shifts Toggle -->
+                <label class="inline-flex items-center gap-2">
+                    <input type="checkbox" id="filter-my" class="rounded border-gray-300 dark:border-gray-600" checked>
+                    <span class="text-gray-700 dark:text-gray-300">My shifts only</span>
+                </label>
+
+                <!-- Team Select -->
+                <div>
+                    <label for="filter-team" class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Team</label>
+                    <select id="filter-team" class="min-w-[10rem] border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm">
+                        <option value="">All teams</option>
+                        @foreach($teams as $teamKey => $teamName)
+                            <option value="{{ $teamKey }}">{{ $teamName }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- Type Checkboxes -->
+                <div>
+                    <div class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Type</div>
+                    <div class="flex flex-wrap gap-3">
+                        @php $types = ['work' => 'Work', 'holiday' => 'Holiday', 'meeting' => 'Meeting']; @endphp
+                        @foreach($types as $tKey => $tLabel)
+                            <label class="inline-flex items-center gap-1">
+                                <input type="checkbox" class="filter-type rounded border-gray-300 dark:border-gray-600" value="{{ $tKey }}" checked>
+                                <span class="text-gray-700 dark:text-gray-300">{{ $tLabel }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+
+                <!-- Location Checkboxes -->
+                <div>
+                    <div class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Location</div>
+                    <div class="flex flex-wrap gap-3">
+                        @php $locations = ['home' => 'Home', 'office' => 'Office', 'meeting' => 'Meeting']; @endphp
+                        @foreach($locations as $lKey => $lLabel)
+                            <label class="inline-flex items-center gap-1">
+                                <input type="checkbox" class="filter-location rounded border-gray-300 dark:border-gray-600" value="{{ $lKey }}" checked>
+                                <span class="text-gray-700 dark:text-gray-300">{{ $lLabel }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+
+                <!-- Date Picker (Jump to date) -->
+                <div>
+                    <label for="jump-date" class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Jump to date</label>
+                    <input type="date" id="jump-date" class="border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm" value="{{ now()->format('Y-m-d') }}">
+                </div>
+
+                <!-- Toggles: Weekends, Week numbers, Compact -->
+                <div class="flex items-center gap-4 ml-auto">
+                    <label class="inline-flex items-center gap-2">
+                        <input type="checkbox" id="toggle-weekends" class="rounded border-gray-300 dark:border-gray-600" checked>
+                        <span class="text-gray-700 dark:text-gray-300">Show weekends</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2">
+                        <input type="checkbox" id="toggle-weeknums" class="rounded border-gray-300 dark:border-gray-600">
+                        <span class="text-gray-700 dark:text-gray-300">Week numbers</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2">
+                        <input type="checkbox" id="toggle-compact" class="rounded border-gray-300 dark:border-gray-600">
+                        <span class="text-gray-700 dark:text-gray-300">Compact</span>
+                    </label>
+                </div>
+
+                <button id="filter-reset" type="button" class="ml-auto text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 underline-offset-2 hover:underline focus:outline-none">
+                    Reset filters
+                </button>
+            </div>
+        </div>
+
+        <div id='calendar' aria-label="Team schedule calendar"></div>
+        <div id="calendar-status" class="sr-only" role="status" aria-live="polite"></div>
         <!-- Calendar Legend / Key -->
         <div class="mt-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-4 text-sm">
             <h3 class="font-semibold mb-3 text-gray-700 dark:text-gray-200">Key</h3>
