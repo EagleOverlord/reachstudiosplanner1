@@ -11,14 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('teams', function (Blueprint $table) {
-            $table->id();
-            $table->string('key')->unique(); // Team identifier (e.g., 'marketing', 'development')
-            $table->string('name'); // Display name (e.g., 'Marketing', 'Development')
-            $table->text('description')->nullable();
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-        });
+        // Only create if it doesn't already exist (prevents "table already exists" on state drift)
+        if (!Schema::hasTable('teams')) {
+            Schema::create('teams', function (Blueprint $table) {
+                $table->id();
+                $table->string('key')->unique(); // e.g., 'marketing', 'development'
+                $table->string('name');          // display name
+                $table->text('description')->nullable();
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
+            });
+        }
     }
 
     /**
