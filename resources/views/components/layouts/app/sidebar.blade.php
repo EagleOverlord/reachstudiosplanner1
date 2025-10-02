@@ -24,10 +24,6 @@
                         Create Schedule
                     </flux:navlist.item>
 
-                    <!-- Statistics -->
-                    <flux:navlist.item icon="chart-bar" :href="route('stats.index')" :current="request()->routeIs('stats.index')" wire:navigate>
-                        Statistics
-                    </flux:navlist.item>
                 </flux:navlist.group>
 
                 <flux:navlist.group :heading="'Settings'" class="grid mt-4">
