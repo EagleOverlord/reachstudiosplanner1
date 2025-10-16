@@ -65,14 +65,6 @@
                 <flux:profile :name="auth()->user()->name" icon:trailing="chevrons-up-down" />
 
                 <flux:menu class="w-[220px]">
-                    <flux:menu.radio.group>
-                        <flux:menu.item :href="route('account.index')" icon="user" wire:navigate>
-                            Settings
-                        </flux:menu.item>
-                    </flux:menu.radio.group>
-
-                    <flux:menu.separator />
-
                     <form method="POST" action="{{ route('logout') }}" class="w-full">
                         @csrf
                         <flux:menu.item as="button" type="submit" icon="arrow-right-start-on-rectangle" class="w-full">
@@ -92,14 +84,6 @@
             <flux:dropdown position="top" align="end">
                 <flux:profile icon-trailing="chevron-down" />
                 <flux:menu>
-                    <flux:menu.radio.group>
-                        <flux:menu.item :href="route('account.index')" icon="user" wire:navigate>
-                            Settings
-                        </flux:menu.item>
-                    </flux:menu.radio.group>
-
-                    <flux:menu.separator />
-
                     <form method="POST" action="{{ route('logout') }}" class="w-full">
                         @csrf
                         <flux:menu.item as="button" type="submit" icon="arrow-right-start-on-rectangle" class="w-full">
