@@ -9,122 +9,151 @@
             @if(isset($shift))
                 @method('PUT')
             @endif
+            @php
+                $resolvedDefaultDate = $defaultDate ?? \Carbon\Carbon::tomorrow()->format('Y-m-d');
+                $fieldConfig = [
+                    'start' => [
+                        'label' => 'Start Date & Time',
+                        'date' => isset($shift) ? $shift->start_time->format('Y-m-d') : old('start_date', $prefill['start_date'] ?? $resolvedDefaultDate),
+                        'time' => isset($shift) ? $shift->start_time->format('H:i') : old('start_time', $prefill['start_time'] ?? '09:00'),
+                    ],
+                    'end' => [
+                        'label' => 'End Date & Time',
+                        'date' => isset($shift) ? $shift->end_time->format('Y-m-d') : old('end_date', $prefill['end_date'] ?? $resolvedDefaultDate),
+                        'time' => isset($shift) ? $shift->end_time->format('H:i') : old('end_time', $prefill['end_time'] ?? '17:00'),
+                    ],
+                ];
+                $timeOptions = [];
+                for ($hour = 6; $hour <= 23; $hour++) {
+                    for ($minute = 0; $minute < 60; $minute += 15) {
+                        $value = sprintf('%02d:%02d', $hour, $minute);
+                        $timeOptions[$value] = date('g:i A', strtotime($value));
+                    }
+                }
+                $selectedType = isset($shift) ? ($shift->type ?? 'work') : old('type', 'work');
+                $scheduleTypes = [
+                    ['value' => 'work', 'label' => 'Work', 'id' => 'work-type'],
+                    ['value' => 'holiday', 'label' => 'Holiday', 'id' => 'holiday-type'],
+                    ['value' => 'meeting', 'label' => 'Meeting', 'id' => 'meeting-type'],
+                ];
+                $selectedLocation = isset($shift) ? ($shift->location ?? 'home') : old('location', 'home');
+                $locationOptions = [
+                    ['value' => 'home', 'label' => 'Home'],
+                    ['value' => 'office', 'label' => 'Office', 'input_id' => 'office-option'],
+                    ['value' => 'meeting', 'label' => 'Meeting Location', 'label_id' => 'meeting-location-option', 'label_attributes' => 'style="display: none;"'],
+                ];
+                $consecutiveDays = old('consecutive_days', 1);
+            @endphp
+
             <div class="flex space-x-4">
-                <div class="w-1/2">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Start Date & Time</label>
-                    <div class="flex space-x-2">
-                        <input type="date" name="start_date" id="start_date" required 
-                               value="{{ isset($shift) ? $shift->start_time->format('Y-m-d') : old('start_date', ($prefill['start_date'] ?? ($defaultDate ?? \Carbon\Carbon::tomorrow()->format('Y-m-d')))) }}"
-                               class="flex-1 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                        <select name="start_time" id="start_time" required 
-                                class="flex-1 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                            @php
-                                $currentStartTime = isset($shift) ? $shift->start_time->format('H:i') : old('start_time', $prefill['start_time'] ?? '09:00');
-                            @endphp
-                            @for($hour = 6; $hour <= 23; $hour++)
-                                @for($minute = 0; $minute < 60; $minute += 15)
-                                    @php
-                                        $timeValue = sprintf('%02d:%02d', $hour, $minute);
-                                        $timeDisplay = date('g:i A', strtotime($timeValue));
-                                    @endphp
-                                    <option value="{{ $timeValue }}" {{ $currentStartTime == $timeValue ? 'selected' : '' }}>
-                                        {{ $timeDisplay }}
+                @foreach($fieldConfig as $prefix => $config)
+                    <div class="w-1/2">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ $config['label'] }}</label>
+                        <div class="flex space-x-2">
+                            @if($prefix === 'end')
+                                <input type="hidden" name="end_date" id="end_date" value="{{ $config['date'] }}">
+                                <input
+                                    type="date"
+                                    id="end_date_display"
+                                    value="{{ $config['date'] }}"
+                                    disabled
+                                    class="flex-1 border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-md shadow-sm cursor-not-allowed"
+                                    aria-describedby="end-date-help"
+                                >
+                            @else
+                                <input
+                                    type="date"
+                                    name="{{ $prefix }}_date"
+                                    id="{{ $prefix }}_date"
+                                    required
+                                    value="{{ $config['date'] }}"
+                                    class="flex-1 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                >
+                            @endif
+                            <select
+                                name="{{ $prefix }}_time"
+                                id="{{ $prefix }}_time"
+                                required
+                                class="flex-1 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                            >
+                                @foreach($timeOptions as $value => $label)
+                                    <option value="{{ $value }}" {{ $config['time'] === $value ? 'selected' : '' }}>
+                                        {{ $label }}
                                     </option>
-                                @endfor
-                            @endfor
-                        </select>
+                                @endforeach
+                            </select>
+                        </div>
+                        @if($prefix === 'end')
+                            <p id="end-date-help" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                End date always matches the start date.
+                            </p>
+                        @endif
                     </div>
-                </div>
-                <div class="w-1/2">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">End Date & Time</label>
-                    <div class="flex space-x-2">
-                        <input type="date" name="end_date" id="end_date" required 
-                               value="{{ isset($shift) ? $shift->end_time->format('Y-m-d') : old('end_date', ($prefill['end_date'] ?? ($defaultDate ?? \Carbon\Carbon::tomorrow()->format('Y-m-d')))) }}"
-                               class="flex-1 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                        <select name="end_time" id="end_time" required 
-                                class="flex-1 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                            @php
-                                $currentEndTime = isset($shift) ? $shift->end_time->format('H:i') : old('end_time', $prefill['end_time'] ?? '17:00');
-                            @endphp
-                            @for($hour = 6; $hour <= 23; $hour++)
-                                @for($minute = 0; $minute < 60; $minute += 15)
-                                    @php
-                                        $timeValue = sprintf('%02d:%02d', $hour, $minute);
-                                        $timeDisplay = date('g:i A', strtotime($timeValue));
-                                    @endphp
-                                    <option value="{{ $timeValue }}" {{ $currentEndTime == $timeValue ? 'selected' : '' }}>
-                                        {{ $timeDisplay }}
-                                    </option>
-                                @endfor
-                            @endfor
-                        </select>
-                    </div>
-                </div>
+                @endforeach
             </div>
-            
+
             <!-- Multi-day booking section -->
             @if(!isset($shift))
             <div id="multi-day-section">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Number of Consecutive Days</label>
-                <select name="consecutive_days" id="consecutive_days" 
-                        class="w-full border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                    <option value="1" selected>1 Day (Default)</option>
-                    <option value="2">2 Days</option>
-                    <option value="3">3 Days</option>
-                    <option value="4">4 Days</option>
-                    <option value="5">5 Days</option>
+                <select
+                    name="consecutive_days"
+                    id="consecutive_days"
+                    class="w-full border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                    @foreach(range(1, 5) as $days)
+                        @php
+                            $daysLabel = $days === 1 ? '1 Day (Default)' : $days . ' Days';
+                        @endphp
+                        <option value="{{ $days }}" {{ (int) $consecutiveDays === $days ? 'selected' : '' }}>
+                            {{ $daysLabel }}
+                        </option>
+                    @endforeach
                 </select>
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Will create shifts for consecutive weekdays starting from the selected start date. Weekends will be automatically skipped.
                 </p>
             </div>
             @endif
-            
+
             <div>
                 <span class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Schedule Type</span>
-                <div class="flex items-center space-x-4"> 
-                    <label class="inline-flex items-center">
-                        <input type="radio" name="type" value="work" 
-                               class="form-radio text-indigo-400 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700" id="work-type"
-                               {{ (isset($shift) && ($shift->type === 'work' || !isset($shift->type))) || (!isset($shift) && old('type', 'work') === 'work') ? 'checked' : '' }}>
-                        <span class="ml-2 text-gray-900 dark:text-gray-200">Work</span>
-                    </label>
-                    <label class="inline-flex items-center">
-                        <input type="radio" name="type" value="holiday" 
-                               class="form-radio text-indigo-400 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700" id="holiday-type"
-                               {{ (isset($shift) && $shift->type === 'holiday') || (!isset($shift) && old('type') === 'holiday') ? 'checked' : '' }}>
-                        <span class="ml-2 text-gray-900 dark:text-gray-200">Holiday</span>
-                    </label>
-                    <label class="inline-flex items-center">
-                        <input type="radio" name="type" value="meeting" 
-                               class="form-radio text-indigo-400 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700" id="meeting-type"
-                               {{ (isset($shift) && $shift->type === 'meeting') || (!isset($shift) && old('type') === 'meeting') ? 'checked' : '' }}>
-                        <span class="ml-2 text-gray-900 dark:text-gray-200">Meeting</span>
-                    </label>
+                <div class="flex items-center space-x-4">
+                    @foreach($scheduleTypes as $type)
+                        <label class="inline-flex items-center">
+                            <input
+                                type="radio"
+                                name="type"
+                                value="{{ $type['value'] }}"
+                                id="{{ $type['id'] }}"
+                                class="form-radio text-indigo-400 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700"
+                                {{ $selectedType === $type['value'] ? 'checked' : '' }}
+                            >
+                            <span class="ml-2 text-gray-900 dark:text-gray-200">{{ $type['label'] }}</span>
+                        </label>
+                    @endforeach
                 </div>
             </div>
-            
+
             <div id="location-section">
                 <span class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Work Location</span>
-                <div class="flex items-center space-x-4"> 
-                    <label class="inline-flex items-center">
-                        <input type="radio" name="location" value="home" 
-                               class="form-radio text-indigo-400 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700"
-                               {{ (isset($shift) && $shift->location === 'home') || (!isset($shift) && old('location', 'home') === 'home') ? 'checked' : '' }}>
-                        <span class="ml-2 text-gray-900 dark:text-gray-200">Home</span>
-                    </label>
-                    <label class="inline-flex items-center">
-                        <input type="radio" name="location" value="office" 
-                               class="form-radio text-indigo-400 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700" id="office-option"
-                               {{ (isset($shift) && $shift->location === 'office') || (!isset($shift) && old('location') === 'office') ? 'checked' : '' }}>
-                        <span class="ml-2 text-gray-900 dark:text-gray-200">Office</span>
-                    </label>
-                    <label class="inline-flex items-center" id="meeting-location-option" style="display: none;">
-                        <input type="radio" name="location" value="meeting" 
-                               class="form-radio text-indigo-400 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700"
-                               {{ (isset($shift) && $shift->location === 'meeting') || (!isset($shift) && old('location') === 'meeting') ? 'checked' : '' }}>
-                        <span class="ml-2 text-gray-900 dark:text-gray-200">Meeting Location</span>
-                    </label>
+                <div class="flex items-center space-x-4">
+                    @foreach($locationOptions as $option)
+                        <label class="inline-flex items-center"
+                            @if(!empty($option['label_id'])) id="{{ $option['label_id'] }}" @endif
+                            @if(!empty($option['label_attributes'])) {!! $option['label_attributes'] !!} @endif
+                        >
+                            <input
+                                type="radio"
+                                name="location"
+                                value="{{ $option['value'] }}"
+                                @if(!empty($option['input_id'])) id="{{ $option['input_id'] }}" @endif
+                                class="form-radio text-indigo-400 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700"
+                                {{ $selectedLocation === $option['value'] ? 'checked' : '' }}
+                            >
+                            <span class="ml-2 text-gray-900 dark:text-gray-200">{{ $option['label'] }}</span>
+                        </label>
+                    @endforeach
                 </div>
                 <div id="office-access-info" class="mt-2 text-sm hidden">
                     <!-- Dynamic content will be inserted here -->
@@ -176,217 +205,5 @@
         @endif
     </div>
 
-    <script>
-        function deleteSchedule() {
-            if (confirm('Are you sure you want to delete this schedule? This action cannot be undone.')) {
-                document.getElementById('delete-form').submit();
-            }
-        }
-        
-        document.addEventListener('DOMContentLoaded', function() {
-            const startDateInput = document.getElementById('start_date');
-            const startTimeInput = document.getElementById('start_time');
-            const endDateInput = document.getElementById('end_date');
-            const endTimeInput = document.getElementById('end_time');
-            const warningDiv = document.getElementById('duration-warning');
-            const warningMessage = document.getElementById('duration-message');
-            const officeOption = document.getElementById('office-option');
-            const keyWarning = document.getElementById('key-warning');
-            const keyWarningMessage = document.getElementById('key-warning-message');
-            const officeAccessInfo = document.getElementById('office-access-info');
-            const userHasKeys = {{ $user->hasKeys() ? 'true' : 'false' }};
-            
-            // Type and location elements
-            const workType = document.getElementById('work-type');
-            const holidayType = document.getElementById('holiday-type');
-            const meetingType = document.getElementById('meeting-type');
-            const locationSection = document.getElementById('location-section');
-            const meetingLocationOption = document.getElementById('meeting-location-option');
-            const multiDaySection = document.getElementById('multi-day-section');
-            const consecutiveDaysSelect = document.getElementById('consecutive_days');
-
-            let currentOfficeAccess = userHasKeys;
-
-            function updateLocationOptions() {
-                if (holidayType.checked) {
-                    // Hide location section for holidays
-                    locationSection.style.display = 'none';
-                    meetingLocationOption.style.display = 'none';
-                    // Auto-select home for holidays (default holiday location)
-                    document.querySelector('input[name="location"][value="home"]').checked = true;
-                    // Show multi-day section for holidays (if it exists)
-                    if (multiDaySection) multiDaySection.style.display = 'block';
-                } else if (meetingType.checked) {
-                    // Show location section and meeting location for meetings
-                    locationSection.style.display = 'block';
-                    meetingLocationOption.style.display = 'block';
-                    // Hide multi-day section for meetings (single meetings only)
-                    if (multiDaySection) {
-                        multiDaySection.style.display = 'none';
-                        consecutiveDaysSelect.value = '1';
-                    }
-                    // Auto-select meeting location for meetings
-                    document.querySelector('input[name="location"][value="meeting"]').checked = true;
-                } else {
-                    // Show location section without meeting location for work
-                    locationSection.style.display = 'block';
-                    meetingLocationOption.style.display = 'none';
-                    // Show multi-day section for work (if it exists)
-                    if (multiDaySection) multiDaySection.style.display = 'block';
-                    // Auto-select home if meeting was selected
-                    if (document.querySelector('input[name="location"][value="meeting"]').checked) {
-                        document.querySelector('input[name="location"][value="home"]').checked = true;
-                    }
-                }
-                validateKeys();
-            }
-
-            function validateDuration() {
-                if (startDateInput.value && startTimeInput.value && endDateInput.value && endTimeInput.value) {
-                    const startDateTime = new Date(startDateInput.value + 'T' + startTimeInput.value);
-                    const endDateTime = new Date(endDateInput.value + 'T' + endTimeInput.value);
-                    
-                    if (endDateTime <= startDateTime) {
-                        warningDiv.classList.remove('hidden');
-                        warningDiv.setAttribute('role', 'alert');
-                        warningMessage.textContent = 'End time must be after start time.';
-                        return;
-                    }
-                    
-                    const diffMs = endDateTime - startDateTime;
-                    const diffHours = diffMs / (1000 * 60 * 60);
-                    
-                    // Only show duration warning for work shifts
-                    if (workType.checked && diffHours < 8) {
-                        warningDiv.classList.remove('hidden');
-                        warningDiv.setAttribute('role', 'alert');
-                        const actualHours = Math.round(diffHours * 10) / 10;
-                        warningMessage.textContent = `The selected duration is ${actualHours} hours, which is less than the standard 8-hour workday.`;
-                    } else {
-                        warningDiv.classList.add('hidden');
-                        warningDiv.removeAttribute('role');
-                    }
-                } else {
-                    warningDiv.classList.add('hidden');
-                    warningDiv.removeAttribute('role');
-                }
-            }
-
-            function checkOfficeAccess() {
-                if (!startDateInput.value || !workType.checked) {
-                    return;
-                }
-
-                const selectedDate = startDateInput.value;
-                
-                fetch('{{ route("schedule.check-office-access") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({
-                        date: selectedDate
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    currentOfficeAccess = data.hasAccess;
-                    updateOfficeAccessUI(data);
-                })
-                .catch(error => {
-                    console.error('Error checking office access:', error);
-                });
-            }
-
-            function updateOfficeAccessUI(data) {
-                if (data.hasAccess) {
-                    keyWarning.classList.add('hidden');
-                    if (data.keyHolders && data.keyHolders.length > 0) {
-                        officeAccessInfo.innerHTML = `
-                            <div class="text-green-600 dark:text-green-400 flex items-center">
-                                <svg class="inline w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                                </svg>
-                                Office access available - ${data.keyHolders.join(', ')} will be there with keys
-                            </div>
-                        `;
-                    } else if (userHasKeys) {
-                        officeAccessInfo.innerHTML = `
-                            <div class="text-green-600 dark:text-green-400 flex items-center">
-                                <svg class="inline w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                                </svg>
-                                You have office keys
-                            </div>
-                        `;
-                    }
-                    officeAccessInfo.classList.remove('hidden');
-                } else {
-                    officeAccessInfo.innerHTML = `
-                        <div class="text-yellow-600 dark:text-yellow-400 flex items-center">
-                            <svg class="inline w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                            </svg>
-                            No one with keys is scheduled for office work on this date
-                        </div>
-                    `;
-                    officeAccessInfo.classList.remove('hidden');
-                }
-            }
-
-            function validateKeys() {
-                if (!currentOfficeAccess && officeOption && officeOption.checked && workType.checked) {
-                    keyWarning.classList.remove('hidden');
-                    keyWarningMessage.textContent = 'Warning: You cannot work in the office on this date - no one with keys will be there to let you in.';
-                    return true; // Allow submission but show warning
-                } else {
-                    keyWarning.classList.add('hidden');
-                    return true;
-                }
-            }
-
-            // Event listeners
-            startDateInput.addEventListener('change', function() {
-                validateDuration();
-                checkOfficeAccess();
-            });
-            
-            startTimeInput.addEventListener('change', validateDuration);
-            endDateInput.addEventListener('change', validateDuration);
-            endTimeInput.addEventListener('change', validateDuration);
-            
-            if (officeOption) {
-                officeOption.addEventListener('change', validateKeys);
-            }
-            
-            // Type change listeners
-            workType.addEventListener('change', updateLocationOptions);
-            holidayType.addEventListener('change', updateLocationOptions);
-            meetingType.addEventListener('change', updateLocationOptions);
-            
-            // Handle consecutive days selection
-            if (consecutiveDaysSelect) {
-                consecutiveDaysSelect.addEventListener('change', function() {
-                    if (parseInt(this.value) > 1) {
-                        endDateInput.disabled = true;
-                        endDateInput.value = startDateInput.value; // Set same as start date for now
-                        endDateInput.style.opacity = '0.5';
-                    } else {
-                        endDateInput.disabled = false;
-                        endDateInput.style.opacity = '1';
-                    }
-                });
-            }
-            
-            // Initialize location options based on current type
-            updateLocationOptions();
-
-            // Validate on form submission but allow submission with warnings
-            document.querySelector('form').addEventListener('submit', function(e) {
-                validateKeys();
-                validateDuration();
-            });
-        });
-    </script>
+    @include('schedule.partials.form-scripts')
 </x-layouts.app>
